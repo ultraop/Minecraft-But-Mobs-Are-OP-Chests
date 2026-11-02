@@ -36,14 +36,15 @@ public final class MobChestsCommand implements CommandExecutor, TabCompleter {
 
     private void showInfo(CommandSender sender) {
         sender.sendMessage(plugin.messages().color("&6&l━━━━━━━━━━━━━━━━━━━━━━━━━━━━"));
-        sender.sendMessage(plugin.messages().color("&6&lULTRAOP MOB CHESTS"));
+        sender.sendMessage(plugin.messages().color("&6&lMOB CHESTS — ABOUT"));
         sender.sendMessage(plugin.messages().color("&7Minecraft: &f26.3 &8| &7Server: &fPaper"));
         sender.sendMessage(plugin.messages().color("&7Plugin: &f" + plugin.getDescription().getVersion()));
         sender.sendMessage(plugin.messages().color("&7Required Java: &f25"));
+        sender.sendMessage(plugin.messages().color("&7Created by: &fUltra OP"));
         sender.sendMessage(plugin.messages().color("&7Components: &fPaper Plugin only"));
         sender.sendMessage(plugin.messages().color("&aMob interaction: &fAll configured vanilla Mobs; no size/model replacement"));
-        sender.sendMessage(plugin.messages().color("&aVisual pose: &fVanilla Mob.lookAt head control; no Resource Pack or Client Mod"));
-        sender.sendMessage(plugin.messages().color("&aFreeze: &fAnchored with a subtle pitch tremble"));
+        sender.sendMessage(plugin.messages().color("&aVisual pose: &fVanilla head-look control; no Resource Pack or Client Mod"));
+        sender.sendMessage(plugin.messages().color("&aFreeze: &fAnchored with a subtle head tremble"));
         sender.sendMessage(plugin.messages().color("&aLoot opening: &fHead/front lift, firework burst and one GUI session"));
         sender.sendMessage(plugin.messages().color("&aDeath drops: &fRemaining chest items replace vanilla mob drops after use"));
         sender.sendMessage(plugin.messages().color("&aLoot: &fMob-family and dimension-aware progression pools"));
