@@ -41,10 +41,11 @@ public final class MobChestsCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(plugin.messages().color("&7Plugin: &f" + plugin.getDescription().getVersion()));
         sender.sendMessage(plugin.messages().color("&7Required Java: &f25"));
         sender.sendMessage(plugin.messages().color("&7Components: &fPlugin + Datapack + Resource Pack"));
-        sender.sendMessage(plugin.messages().color("&aImplemented prototype: &fAdult Cow freeze/open animation"));
+        sender.sendMessage(plugin.messages().color("&aInteraction prototype: &fAdult Cow freeze/open animation"));
         sender.sendMessage(plugin.messages().color("&aOne-time GUI: &fClose -> lid shuts -> Cow AI restored"));
-        sender.sendMessage(plugin.messages().color("&ePrototype scope: &fCow only; custom Resource Pack required"));
-        sender.sendMessage(plugin.messages().color("&ePlanned: &fall mobs, full loot tables, custom gear, Legend and bosses"));
+        sender.sendMessage(plugin.messages().color("&aLoot engine: &fMob-family pools, variable stacks, weighted rarity"));
+        sender.sendMessage(plugin.messages().color("&eVisual interaction: &fAdult Cow only; Resource Pack required"));
+        sender.sendMessage(plugin.messages().color("&ePending: &fOther mob models, custom abilities, Legend and boss progression"));
         sender.sendMessage(plugin.messages().color("&8Use &e/mobchests help &8for commands."));
         sender.sendMessage(plugin.messages().color("&6&l━━━━━━━━━━━━━━━━━━━━━━━━━━━━"));
     }
@@ -59,7 +60,9 @@ public final class MobChestsCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(plugin.messages().color("&7Config: &aLoaded"));
         sender.sendMessage(plugin.messages().color("&7Cow interaction: &aPrototype enabled"));
         sender.sendMessage(plugin.messages().color("&7Cow chest open/close animation: &eRequires 26.3 resource pack"));
-        sender.sendMessage(plugin.messages().color("&7All-mob loot/progression: &cNot implemented yet"));
+        sender.sendMessage(plugin.messages().color("&7Mob-family loot generator: &aActive (used by Cow prototype)"));
+        sender.sendMessage(plugin.messages().color("&7Other mob interactions: &cDisabled pending visual models"));
+        sender.sendMessage(plugin.messages().color("&7Custom abilities / Legend / bosses: &cNot implemented"));
     }
 
     private void reload(CommandSender sender) {
