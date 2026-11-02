@@ -41,7 +41,7 @@ Boss mobs receive a small rarity bias only. No named item is guaranteed.
 - Emerald Armor currently uses a single green-dyed leather armor piece.
 - Liquid Gold Bucket is a sealed placeholder with an orange-filled vanilla bucket icon. Its fluid system and ten-second abilities are not implemented.
 - Custom equipment is limited to one equipment reward per chest.
-- Custom tome metadata stores ranks 30–60 separately from vanilla enchantment levels.
+- Ancient Enchanted Books store real Sharpness, Power, Protection, Efficiency, Unbreaking, Fortune, Looting, Feather Falling, Respiration or Mending enchantments at levels 30–60. Right-click with compatible gear in the off-hand to apply the stored enchantment directly.
 - Other named artifacts remain item-ID foundations until their abilities are implemented.
 
 ## Burst and death-drop rule
