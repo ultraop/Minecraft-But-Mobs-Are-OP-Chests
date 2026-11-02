@@ -4,6 +4,7 @@ import in.ultraop.mobchests.UltraOPMobChestsPlugin;
 import in.ultraop.mobchests.inventory.MobChestInventoryHolder;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.Material;
@@ -14,6 +15,7 @@ import org.bukkit.entity.EntityType;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.EnchantmentStorageMeta;
 import org.bukkit.inventory.meta.LeatherArmorMeta;
 import org.bukkit.World;
 import org.bukkit.persistence.PersistentDataType;
@@ -52,8 +54,8 @@ public final class MobLootGenerator {
                 Component.text(displayName(type.name()) + " Treasure", NamedTextColor.GOLD));
         holder.bind(inventory);
 
-        int minStacks = clamp(plugin.getConfig().getInt("loot.minimum-item-stacks", 4), 0, 27);
-        int maxStacks = clamp(plugin.getConfig().getInt("loot.maximum-item-stacks", 8), minStacks, 27);
+        int minStacks = clamp(plugin.getConfig().getInt("loot.minimum-item-stacks", 14), 1, 36);
+        int maxStacks = clamp(plugin.getConfig().getInt("loot.maximum-item-stacks", 18), minStacks, 36);
         int stacks = random.nextInt(minStacks, maxStacks + 1);
         List<Integer> slots = new ArrayList<>();
         for (int slot = 0; slot < inventory.getSize(); slot++) slots.add(slot);
@@ -65,7 +67,7 @@ public final class MobLootGenerator {
 
         // Special rewards occupy fresh slots; they never overwrite another reward.
         int nextSpecialSlot = stacks;
-        double liquidGoldChance = chance(plugin, "loot.liquid-gold-chance", 0.07);
+        double liquidGoldChance = chance(plugin, "loot.liquid-gold-chance", 0.25);
         if (stacks > 0 && nextSpecialSlot < slots.size() && random.nextDouble() < liquidGoldChance) {
             inventory.setItem(slots.get(nextSpecialSlot++), liquidGoldBucket(plugin));
         }
@@ -121,8 +123,8 @@ public final class MobLootGenerator {
                                     UltraOPMobChestsPlugin plugin,
                                     ThreadLocalRandom random) {
         return switch (rarity) {
-            case COMMON -> stack(randomMaterial(commonPool(type, environment)), random, 1, 5);
-            case UNCOMMON -> stack(randomMaterial(uncommonPool(environment)), random, 1, 3);
+            case COMMON -> stack(randomMaterial(commonPool(type, environment)), random, 1, 8);
+            case UNCOMMON -> stack(randomMaterial(uncommonPool(environment)), random, 1, 5);
             case RARE -> random.nextDouble() < 0.42
                     ? stack(randomMaterial(dimensionRarePool(environment)), random, 1, 2)
                     : random.nextBoolean()
@@ -176,7 +178,10 @@ public final class MobLootGenerator {
         pool.addAll(List.of(
                 "PAPER", "COMPASS", "MAP", "CLOCK", "BOOK", "FEATHER", "STRING",
                 "IRON_NUGGET", "COAL", "COPPER_INGOT", "REDSTONE", "LAPIS_LAZULI",
-                "GOLD_NUGGET", "BREAD", "ARROW", "LEATHER", "TORCH", "STICK"));
+                "GOLD_NUGGET", "BREAD", "ARROW", "LEATHER", "TORCH", "STICK",
+                "APPLE", "GOLDEN_CARROT", "BAKED_POTATO", "BEETROOT", "BEETROOT_SEEDS",
+                "MELON_SLICE", "PUMPKIN_SEEDS", "SUGAR", "HONEY_BOTTLE", "FIREWORK_ROCKET",
+                "OAK_LOG", "COBBLESTONE", "GLASS", "FLINT", "BRICK", "WHEAT_SEEDS"));
         pool.addAll(dimensionCommonPool(environment));
         return pool;
     }
@@ -251,24 +256,35 @@ public final class MobLootGenerator {
         Enchantment enchantment = Registry.ENCHANTMENT.get(
                 NamespacedKey.minecraft(keys[random.nextInt(keys.length)]));
         if (enchantment != null) meta.addEnchant(enchantment, random.nextInt(1, 5), true);
-        meta.displayName(Component.text("Enchanted " + title(item.getType().name()), NamedTextColor.AQUA));
+        meta.displayName(itemTitle("Enchanted " + title(item.getType().name()), NamedTextColor.AQUA));
         item.setItemMeta(meta);
         return item;
     }
 
     private static ItemStack customEnchantmentTome(UltraOPMobChestsPlugin plugin,
                                                    ThreadLocalRandom random) {
-        ItemStack tome = new ItemStack(Material.ENCHANTED_BOOK);
+        String[] keys = {"sharpness", "power", "protection", "efficiency", "unbreaking",
+                "fortune", "looting", "feather_falling", "respiration", "mending"};
+        String selectedKey = keys[random.nextInt(keys.length)];
+        Enchantment enchantment = Registry.ENCHANTMENT.get(NamespacedKey.minecraft(selectedKey));
+        if (enchantment == null) {
+            selectedKey = "sharpness";
+            enchantment = Registry.ENCHANTMENT.get(NamespacedKey.minecraft(selectedKey));
+        }
+
         int rank = random.nextInt(30, 61);
-        ItemMeta meta = tome.getItemMeta();
-        meta.displayName(Component.text("UltraOP Enchantment Tome", NamedTextColor.LIGHT_PURPLE));
+        ItemStack tome = new ItemStack(Material.ENCHANTED_BOOK);
+        EnchantmentStorageMeta meta = (EnchantmentStorageMeta) tome.getItemMeta();
+        if (enchantment != null) meta.addStoredEnchant(enchantment, rank, true);
+        meta.displayName(itemTitle("Ancient Enchanted Book", NamedTextColor.LIGHT_PURPLE));
         meta.lore(List.of(
-                Component.text("Custom enchantment rank: " + rank, NamedTextColor.GOLD),
-                Component.text("Separate from vanilla enchantment levels.", NamedTextColor.GRAY)));
+                itemLore("Stored Enchantment: " + title(selectedKey), NamedTextColor.GOLD),
+                itemLore("Enchantment Level: " + rank, NamedTextColor.AQUA),
+                itemLore("Apply to compatible gear in an anvil.", NamedTextColor.GRAY)));
         meta.getPersistentDataContainer().set(new NamespacedKey(plugin, "custom_enchantment_rank"),
                 PersistentDataType.INTEGER, rank);
         meta.getPersistentDataContainer().set(new NamespacedKey(plugin, "custom_enchantment_id"),
-                PersistentDataType.STRING, "random_tome");
+                PersistentDataType.STRING, selectedKey);
         tome.setItemMeta(meta);
         return tome;
     }
@@ -291,7 +307,7 @@ public final class MobLootGenerator {
         ItemMeta meta = item.getItemMeta();
         if (meta instanceof LeatherArmorMeta leather) {
             leather.setColor(Color.fromRGB(47, 190, 91));
-            leather.displayName(Component.text(title(ids[index]), NamedTextColor.GREEN));
+            leather.displayName(itemTitle(title(ids[index]), NamedTextColor.GREEN));
             item.setItemMeta(leather);
         }
         return item;
@@ -304,24 +320,23 @@ public final class MobLootGenerator {
         int index = random.nextInt(ids.length);
         ItemStack item = taggedArtifact(plugin, ids[index], names[index], materials[index]);
         ItemMeta meta = item.getItemMeta();
-        meta.lore(List.of(
-                Component.text("Rare golden food", NamedTextColor.GOLD),
-                Component.text("A custom UltraOP reward.", NamedTextColor.GRAY)));
+        meta.displayName(itemTitle(names[index], NamedTextColor.GOLD));
+        meta.lore(List.of(itemLore("Rare golden food", NamedTextColor.GRAY)));
         item.setItemMeta(meta);
         return item;
     }
 
     private static ItemStack liquidGoldBucket(UltraOPMobChestsPlugin plugin) {
         ItemStack item = taggedArtifact(plugin, "liquid_gold_bucket",
-                "Liquid Gold Bucket", Material.BUCKET);
+                "Liquid Gold Bucket", Material.LAVA_BUCKET);
         ItemMeta meta = item.getItemMeta();
         meta.getPersistentDataContainer().set(
                 new NamespacedKey(plugin, "custom_fluid_id"),
                 PersistentDataType.STRING, "liquid_gold");
+        meta.displayName(itemTitle("Liquid Gold Bucket", NamedTextColor.GOLD));
         meta.lore(List.of(
-                Component.text("Rare custom fluid", NamedTextColor.GOLD),
-                Component.text("Flowing golden water-like fluid.", NamedTextColor.GRAY),
-                Component.text("Fluid placement behaviour is being added separately.", NamedTextColor.DARK_GRAY)));
+                itemLore("Golden water-like liquid", NamedTextColor.GRAY),
+                itemLore("This item is sealed in the current build.", NamedTextColor.DARK_GRAY)));
         item.setItemMeta(meta);
         return item;
     }
@@ -337,9 +352,16 @@ public final class MobLootGenerator {
         int index = random.nextInt(ids.length);
         ItemStack item = taggedArtifact(plugin, ids[index], names[index], materials[index]);
         ItemMeta meta = item.getItemMeta();
-        meta.lore(List.of(Component.text(rarityLabel + " UltraOP Artifact",
-                "Mythic".equals(rarityLabel) ? NamedTextColor.LIGHT_PURPLE : NamedTextColor.DARK_PURPLE),
-                Component.text("Unique artifact ID: " + ids[index], NamedTextColor.GRAY)));
+        String description = switch (ids[index]) {
+            case "skull_scepter" -> "A scepter carved from a cursed skull.";
+            case "abyssal_heart" -> "A rare relic recovered from the deep.";
+            case "warden_echo_relic" -> "A resonant relic from the Deep Dark.";
+            case "dragon_wing_plate" -> "A plate forged from dragon-scale metal.";
+            case "dragon_blast" -> "A volatile charge infused with dragon fire.";
+            default -> "A rare enchanted relic.";
+        };
+        meta.displayName(itemTitle(names[index], NamedTextColor.GOLD));
+        meta.lore(List.of(itemLore(description, NamedTextColor.GRAY)));
         item.setItemMeta(meta);
         return item;
     }
@@ -348,8 +370,8 @@ public final class MobLootGenerator {
                                             String name, Material material) {
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
-        meta.displayName(Component.text(name, NamedTextColor.GOLD));
-        meta.lore(List.of(Component.text("UltraOP custom item", NamedTextColor.DARK_PURPLE)));
+        meta.displayName(itemTitle(name, NamedTextColor.GOLD));
+        meta.lore(List.of(itemLore("Rare treasure", NamedTextColor.GRAY)));
         meta.getPersistentDataContainer().set(new NamespacedKey(plugin, "custom_item_id"),
                 PersistentDataType.STRING, id);
         item.setItemMeta(meta);
@@ -358,8 +380,22 @@ public final class MobLootGenerator {
 
     private static ItemStack stack(Material material, ThreadLocalRandom random, int min, int max) {
         if (material == null || material.isAir()) material = Material.BREAD;
-        int upper = Math.min(max, material.getMaxStackSize());
-        return new ItemStack(material, random.nextInt(min, Math.max(min, upper) + 1));
+        int maxAllowed = Math.max(1, material.getMaxStackSize());
+        int lower = Math.max(1, Math.min(min, maxAllowed));
+        int upper = Math.max(lower, Math.min(max, maxAllowed));
+        return new ItemStack(material, random.nextInt(lower, upper + 1));
+    }
+
+    private static Component itemTitle(String text, NamedTextColor color) {
+        return Component.text(text, color)
+                .decoration(TextDecoration.ITALIC, TextDecoration.State.FALSE)
+                .decoration(TextDecoration.BOLD, TextDecoration.State.TRUE);
+    }
+
+    private static Component itemLore(String text, NamedTextColor color) {
+        return Component.text(text, color)
+                .decoration(TextDecoration.ITALIC, TextDecoration.State.FALSE)
+                .decoration(TextDecoration.BOLD, TextDecoration.State.FALSE);
     }
 
     private static Material randomMaterial(List<String> names) {
