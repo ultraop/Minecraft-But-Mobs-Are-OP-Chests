@@ -3,12 +3,15 @@ package in.ultraop.mobchests;
 import in.ultraop.mobchests.command.MobChestsCommand;
 import in.ultraop.mobchests.config.MessageService;
 import in.ultraop.mobchests.config.PluginSettings;
+import in.ultraop.mobchests.listener.MobChestListener;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.event.HandlerList;
 
 public final class UltraOPMobChestsPlugin extends JavaPlugin {
     private PluginSettings settings;
     private MessageService messages;
+    private MobChestListener mobChestListener;
 
     @Override
     public void onEnable() {
@@ -28,11 +31,20 @@ public final class UltraOPMobChestsPlugin extends JavaPlugin {
         }
         command.setExecutor(executor);
         command.setTabCompleter(executor);
-        getLogger().info("Enabled initial scaffold. Gameplay modules are not implemented yet.");
+
+        mobChestListener = new MobChestListener(this);
+        getServer().getPluginManager().registerEvents(mobChestListener, this);
+        mobChestListener.recoverLoadedEntities();
+
+        getLogger().info("UltraOP Mob Chests enabled. Cow interaction/animation prototype is active; other mobs are not enabled yet.");
     }
 
     @Override
     public void onDisable() {
+        if (mobChestListener != null) {
+            mobChestListener.shutdown();
+            HandlerList.unregisterAll(mobChestListener);
+        }
         getLogger().info("UltraOP Mob Chests disabled.");
     }
 
