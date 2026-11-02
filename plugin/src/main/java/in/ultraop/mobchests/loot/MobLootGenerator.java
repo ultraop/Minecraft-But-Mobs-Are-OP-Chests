@@ -114,8 +114,9 @@ public final class MobLootGenerator {
                     "NETHERITE_SCRAP", "AMETHYST_SHARD")), random, 1, 2);
             case EPIC -> random.nextBoolean()
                     ? customEnchantmentTome(plugin, random)
-                    : artifact(plugin, random, false);
-            case LEGENDARY, MYTHIC -> artifact(plugin, random, true);
+                    : artifact(plugin, random, "Epic");
+            case LEGENDARY -> artifact(plugin, random, "Legendary");
+            case MYTHIC -> artifact(plugin, random, "Mythic");
         };
     }
 
@@ -169,9 +170,15 @@ public final class MobLootGenerator {
     private static ItemStack enchantedGear(ThreadLocalRandom random) {
         Material[] choices = {Material.DIAMOND_SWORD, Material.BOW, Material.IRON_CHESTPLATE,
                 Material.DIAMOND_PICKAXE, Material.CROSSBOW};
-        ItemStack item = new ItemStack(choices[random.nextInt(choices.length)]);
+        String[][] enchantmentKeys = {
+                {"sharpness", "unbreaking"}, {"power", "unbreaking"},
+                {"protection", "unbreaking"}, {"efficiency", "unbreaking"},
+                {"quick_charge", "unbreaking"}
+        };
+        int selected = random.nextInt(choices.length);
+        ItemStack item = new ItemStack(choices[selected]);
         ItemMeta meta = item.getItemMeta();
-        String[] keys = {"sharpness", "protection", "power", "unbreaking", "efficiency"};
+        String[] keys = enchantmentKeys[selected];
         Enchantment enchantment = Registry.ENCHANTMENT.get(
                 NamespacedKey.minecraft(keys[random.nextInt(keys.length)]));
         if (enchantment != null) meta.addEnchant(enchantment, random.nextInt(1, 5), true);
@@ -209,7 +216,7 @@ public final class MobLootGenerator {
     }
 
     private static ItemStack artifact(UltraOPMobChestsPlugin plugin,
-                                      ThreadLocalRandom random, boolean topTier) {
+                                      ThreadLocalRandom random, String rarityLabel) {
         String[] ids = {"liquid_gold_bucket", "skull_scepter", "abyssal_heart",
                 "warden_echo_relic", "dragon_wing_plate", "dragon_blast"};
         String[] names = {"Liquid Gold Bucket", "Skull Scepter", "Abyssal Heart",
@@ -219,8 +226,8 @@ public final class MobLootGenerator {
         int index = random.nextInt(ids.length);
         ItemStack item = taggedArtifact(plugin, ids[index], names[index], materials[index]);
         ItemMeta meta = item.getItemMeta();
-        meta.lore(List.of(Component.text(topTier ? "Mythic UltraOP Artifact" : "Epic UltraOP Artifact",
-                topTier ? NamedTextColor.LIGHT_PURPLE : NamedTextColor.DARK_PURPLE),
+        meta.lore(List.of(Component.text(rarityLabel + " UltraOP Artifact",
+                "Mythic".equals(rarityLabel) ? NamedTextColor.LIGHT_PURPLE : NamedTextColor.DARK_PURPLE),
                 Component.text("Unique artifact ID: " + ids[index], NamedTextColor.GRAY)));
         item.setItemMeta(meta);
         return item;
