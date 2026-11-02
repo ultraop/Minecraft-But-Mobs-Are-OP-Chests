@@ -323,6 +323,7 @@ public final class MobChestListener implements Listener {
                     }
 
                     setState(mob, LOOT_OPEN);
+                    startOpenPoseHold(mob, plugin.settings().openingHeadLookDegrees());
                     launchLootBurst(mob, inventory);
                     persistInventory(mob, inventory);
                     try {
@@ -375,6 +376,31 @@ public final class MobChestListener implements Listener {
             }
         }, 1L, 1L);
         poseTasks.put(id, task);
+    }
+
+    /**
+     * Keep the Mob anchored with its head held open for the entire GUI session.
+     * The old freeze task was removed at the beginning of the opening animation,
+     * so this hold task owns the mob until the inventory closes.
+     */
+    private void startOpenPoseHold(Mob mob, float lookUpDegrees) {
+        UUID id = mob.getUniqueId();
+        stopTask(freezeTasks.remove(id));
+        BukkitTask task = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            if (!mob.isValid() || mob.isDead() || !LOOT_OPEN.equals(getState(mob))) {
+                stopTask(freezeTasks.remove(id));
+                return;
+            }
+            Location anchor = readAnchor(mob);
+            if (anchor == null) return;
+            applyFrozenState(mob);
+            if (!mob.getWorld().equals(anchor.getWorld())
+                    || mob.getLocation().distanceSquared(anchor) > 0.0001) {
+                mob.teleport(anchor);
+            }
+            applyHeadLookPose(mob, anchor, lookUpDegrees);
+        }, 1L, 1L);
+        freezeTasks.put(id, task);
     }
 
     private void launchLootBurst(Mob mob, Inventory inventory) {
