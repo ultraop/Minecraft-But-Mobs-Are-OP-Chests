@@ -166,8 +166,7 @@ public final class MobChestListener implements Listener {
 
     private void applyFrozenState(Mob mob) {
         // Keep the entity's look controller available for Mob.lookAt(),
-        // while awareness=false prevents ordinary autonomous behaviour.
-        // LookController only advances while the Mob is aware. Keep the
+        // The vanilla look controller only advances while the Mob is aware. Keep the
         // controller ticking, but pin position, gravity and navigation every tick.
         mob.setAI(true);
         mob.setAware(true);
@@ -644,7 +643,7 @@ public final class MobChestListener implements Listener {
         }
 
         // Once the chest has been used, it replaces rather than duplicates
-        // the mob's native drops and XP.
+        // the mob's native item drops.
         event.getDrops().clear();
         // Keep normal vanilla experience; only item drops are replaced.
 
