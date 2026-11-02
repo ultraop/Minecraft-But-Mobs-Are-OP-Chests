@@ -25,8 +25,7 @@ import java.util.Locale;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * Mob-family loot generator. The current interaction prototype calls this for
- * Cows; profiles cover vanilla mob families for later visual-model expansion.
+ * Mob-family and dimension-aware loot generator used by configured vanilla Mobs.
  */
 public final class MobLootGenerator {
     private static final int INVENTORY_SIZE = 54;
