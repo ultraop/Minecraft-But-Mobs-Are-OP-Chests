@@ -4,18 +4,17 @@ main: in.ultraop.mobchests.UltraOPMobChestsPlugin
 api-version: '26.3'
 description: Resource-pack-free mob chest gameplay using vanilla entity poses and saved mob loot.
 authors: [MobChests Team]
-website: https://github.com/ultraop/Minecraft-But-Mobs-Are-OP-Chests
 load: POSTWORLD
 commands:
   mobchests:
     description: Main command for Mob Chests.
     usage: "/mobchests <info|help|status|reload>"
     aliases: [mobchest]
-    permission: ultraopmobchests.use
+    permission: mobchests.use
 permissions:
   ultraopmobchests.use:
     description: Allows access to public Mob Chests commands.
     default: true
-  ultraopmobchests.admin:
+  mobchests.admin:
     description: Allows administrative Mob Chests commands.
     default: op
