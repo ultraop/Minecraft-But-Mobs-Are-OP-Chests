@@ -570,7 +570,7 @@ public final class MobChestListener implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.MONITOR)
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void onMobDeath(EntityDeathEvent event) {
         if (!(event.getEntity() instanceof Mob mob)) return;
         UUID id = mob.getUniqueId();
@@ -610,17 +610,32 @@ public final class MobChestListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onChunkUnload(ChunkUnloadEvent event) {
         for (Entity entity : event.getChunk().getEntities()) {
-            if (!(entity instanceof Mob mob) || !isSupported(mob)) continue;
+            if (!(entity instanceof Mob mob)) continue;
             UUID id = mob.getUniqueId();
-            stopTask(freezeTasks.remove(id));
+            String state = getState(mob);
 
-            Inventory inventory = activeInventories.get(id);
-            if (inventory != null) persistInventory(mob, inventory);
-            else persistPlayerOpenInventory(id);
+            if (FROZEN.equals(state)) {
+                stopTask(freezeTasks.remove(id));
+                continue; // The saved FROZEN state resumes when the chunk loads.
+            }
 
-            if (OPENING.equals(getState(mob)) || LOOT_OPEN.equals(getState(mob))
-                    || CLOSING.equals(getState(mob))) {
-                finishSession(id, false);
+            if (OPENING.equals(state) || LOOT_OPEN.equals(state) || CLOSING.equals(state)) {
+                Inventory inventory = activeInventories.get(id);
+                if (inventory != null) persistInventory(mob, inventory);
+                else persistPlayerOpenInventory(id);
+
+                setState(mob, CLOSING);
+                UUID openerId = openers.get(id);
+                Player opener = openerId == null ? null : Bukkit.getPlayer(openerId);
+                if (opener != null) opener.closeInventory();
+
+                stopTask(poseTasks.remove(id));
+                stopTask(freezeTasks.remove(id));
+                activeInventories.remove(id);
+                activeMobs.remove(id);
+                openers.remove(id);
+                setState(mob, LOOTED);
+                restoreNormalState(mob);
             }
         }
     }
@@ -650,17 +665,22 @@ public final class MobChestListener implements Listener {
 
     private void recoverChunk(Chunk chunk) {
         for (Entity entity : chunk.getEntities()) {
-            if (!(entity instanceof Mob mob) || !isSupported(mob)) continue;
+            if (!(entity instanceof Mob mob)) continue;
             String state = getState(mob);
             if (FROZEN.equals(state)) {
                 applyFrozenState(mob);
                 startFreezeEnforcer(mob);
             } else if (OPENING.equals(state) || LOOT_OPEN.equals(state) || CLOSING.equals(state)) {
-                // Interrupted chest sessions stay consumed, but their last
-                // saved inventory remains available when this mob dies.
+                // Interrupted chest sessions remain consumed. The last saved
+                // contents are kept on the entity and drop when it dies.
+                stopTask(poseTasks.remove(mob.getUniqueId()));
+                activeInventories.remove(mob.getUniqueId());
+                activeMobs.remove(mob.getUniqueId());
+                openers.remove(mob.getUniqueId());
                 setState(mob, LOOTED);
                 restoreNormalState(mob);
             } else if (LOOTED.equals(state) && mob.isInvisible()) {
+                // Compatibility recovery for entities opened by older builds.
                 restoreNormalState(mob);
             }
         }
