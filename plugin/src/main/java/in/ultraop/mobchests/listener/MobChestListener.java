@@ -26,6 +26,7 @@ import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.entity.ExplosionPrimeEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.world.ChunkLoadEvent;
 import org.bukkit.event.world.ChunkUnloadEvent;
@@ -312,6 +313,24 @@ public final class MobChestListener implements Listener {
         mob.getWorld().spawnParticle(Particle.CLOUD, origin, 14, 0.28, 0.24, 0.28, 0.04);
         mob.getWorld().spawnParticle(Particle.TOTEM_OF_UNDYING, origin, 22, 0.32, 0.32, 0.32, 0.18);
         mob.getWorld().spawnParticle(Particle.CRIT, origin, 16, 0.25, 0.30, 0.25, 0.12);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void protectLiquidGoldPlaceholder(PlayerInteractEvent event) {
+        if (event.getHand() != org.bukkit.inventory.EquipmentSlot.HAND) return;
+        ItemStack held = event.getItem();
+        if (held == null || !held.hasItemMeta()) return;
+
+        String fluidId = held.getItemMeta().getPersistentDataContainer().get(
+                new NamespacedKey(plugin, "custom_fluid_id"), PersistentDataType.STRING);
+        if (!"liquid_gold".equals(fluidId)) return;
+
+        if (event.getAction() == org.bukkit.event.block.Action.RIGHT_CLICK_AIR
+                || event.getAction() == org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK) {
+            event.setCancelled(true);
+            event.getPlayer().sendActionBar(
+                    "Liquid Gold fluid placement and scooping are not enabled in this build yet.");
+        }
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
