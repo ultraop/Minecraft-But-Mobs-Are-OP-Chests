@@ -1,38 +1,50 @@
 # Testing Checklist
 
-## Build
+## Build and packaging
 - [ ] Java 25 toolchain resolves.
-- [ ] Paper 26.3 API resolves.
-- [ ] Gradle clean build passes.
-- [ ] JAR contains plugin.yml and default configs.
+- [ ] Paper 26.3 API dependency resolves.
+- [ ] Root `gradle clean build` builds the plugin subproject.
+- [ ] JAR contains plugin.yml, config.yml and messages.yml.
+- [ ] Resource-pack texture generator produces valid PNG files.
+- [ ] Datapack and resource-pack ZIPs contain pack.mcmeta at archive root.
 
-## Commands
-- [ ] info is the single version/build info panel.
-- [ ] help lists command meanings and permissions.
-- [ ] reload rejects non-admins.
-- [ ] status accurately reports implemented modules.
+## Cow interaction
+- [ ] Adult Cow first right-click freezes it without sitting/taming.
+- [ ] Frozen Cow remains at its anchor when pushed or hit by knockback.
+- [ ] Second right-click starts only one opening animation.
+- [ ] Upper body rotates around the centre seam; lower body does not move.
+- [ ] The real Cow model is not visible underneath the display parts.
+- [ ] Inventory appears after the open animation.
+- [ ] Close after taking every item: lid closes, display parts disappear, Cow returns to normal AI.
+- [ ] Close after taking some items: same cleanup and restore behavior.
+- [ ] Close without taking any items: same cleanup and restore behavior; chest cannot reopen.
+- [ ] A later right-click is handled by normal Cow interaction, not another chest.
+- [ ] Later Cow death gives ordinary vanilla drops and XP.
 
-## Interaction
-- [ ] First right-click freezes.
-- [ ] Second right-click opens exactly once.
-- [ ] No sit/tame behavior.
-- [ ] Body splits at middle; lid opens; base stays fixed.
-- [ ] No duplicate session for two players.
-- [ ] GUI close discards remainder; no reroll.
-- [ ] Mob returns to normal AI.
-- [ ] Later death yields vanilla drops and XP, with no extra OP loot.
+## Failure and cleanup paths
+- [ ] Player disconnects while the lid is opening.
+- [ ] Player disconnects while the inventory is open.
+- [ ] Cow dies before the chest opens.
+- [ ] Cow is removed during the animation.
+- [ ] Chunk unload during freeze.
+- [ ] Chunk unload while opening/inventory is open.
+- [ ] Chunk reload restores a frozen Cow or safely consumes an interrupted opening.
+- [ ] Plugin disable/reload removes temporary display entities.
+- [ ] Server restart does not leave a hidden Cow or orphaned display part.
+- [ ] Two players click the same Cow at nearly the same time; only one inventory opens.
 
-## Loot
-- [ ] Every mob has table or explicit mapping.
+## Visual QA
+- [ ] Correct orientation from all sides.
+- [ ] Body scale matches the Cow hitbox.
+- [ ] No gap or overlap at the middle seam.
+- [ ] No clipping between the top and bottom model parts while rotating.
+- [ ] Model closes exactly to its original pose.
+- [ ] Resource pack is loaded by every test client.
+
+## Later full-gameplay modules
+- [ ] Every vanilla mob has a loot table or documented inheritance mapping.
 - [ ] Item count and stack sizes vary.
-- [ ] Common rewards more frequent than rare.
-- [ ] Custom equipment rare; no full set per chest.
-- [ ] Boss pools stronger but not guaranteed.
-- [ ] Results persist through relog, chunk unload and restart.
-
-## Visuals
-- [ ] Pack loads.
-- [ ] Cow model opens correctly.
-- [ ] All viewers see same animation.
-- [ ] Different mob sizes/poses align.
-- [ ] Display entities cleaned on death/unload.
+- [ ] Common rewards occur more often than rare rewards.
+- [ ] Custom equipment is rare; no full armor set per chest.
+- [ ] Boss pools are stronger but do not guarantee a specific item.
+- [ ] Loot persists through relog, chunk unload and restart.
