@@ -1,50 +1,53 @@
 # Development Roadmap
 
 ## Phase 0 — Repository/build foundation
-- [x] Repository structure, Paper 26.3 / Java 25 target and CI build.
+- [x] Paper 26.3 / Java 25 target, repository structure and CI.
 - [x] Main info, help, status and reload command foundations.
 
-## Phase 1 — Cow interaction lifecycle
-- [x] First right-click freezes an adult Cow without taming/sitting.
-- [x] Second right-click starts the one-time open animation.
-- [x] Persistent entity state and freeze anchor.
-- [x] One GUI session; closing after taking all/some/none consumes the chest.
+## Phase 1 — Interaction lifecycle
+- [x] Adult Cow first right-click freeze and subtle tremble.
+- [x] Creeper first right-click freeze, subtle tremble and fuse disarm.
+- [x] Cow body-split and Creeper head-lid second-click animation foundations.
+- [x] One GUI session per mob; close after taking all/some/none consumes it.
+- [x] Firework sound/particle opening and 1–2 real loot stacks burst upward/outward.
 - [x] Restore original AI, awareness, gravity, visibility and collision.
+- [x] Creeper explosion suppression during frozen/open states; normal fuse behaviour resumes after close.
 - [x] Preserve ordinary vanilla death drops and XP.
-- [x] Chunk load/unload and plugin enable/disable recovery.
-- [ ] Real Paper 26.3 in-game tests and two-player race/quit tests.
+- [x] Chunk/plugin recovery paths.
+- [ ] Real Paper 26.3 client testing, two-player race and disconnect tests.
 
-## Phase 2 — Visual proof of concept
-- [x] Cow upper/lower ItemDisplay parts and configurable interpolation duration.
-- [x] Pack metadata and texture/model generation.
-- [ ] Real-client seam, rotation, clipping, orientation and cleanup verification.
-- [ ] Create and test individual models for each additional supported mob.
-- [ ] Verify all clients see the same animation.
-- [ ] Consider Fabric renderer integration if the Paper display illusion cannot meet the target.
+## Phase 2 — Visual models
+- [x] Cow middle-seam and Creeper head-lid model assets.
+- [x] Generated Cow/Creeper textures and custom Golden food/Bucket item art.
+- [x] CI namespace, texture-reference, ZIP and y=8 seam validation.
+- [ ] Real-client scale, hinge, clipping, orientation and cleanup verification.
+- [ ] Add separate tested models for Zombie, Skeleton, Squid, Pig, Horse, Sheep, Goat and other mobs.
+- [ ] Verify every client sees the same display animation.
+- [ ] Consider Fabric renderer integration only if Paper display entities cannot meet the visual target.
 
-## Phase 3 — Loot engine
-- [x] Mob-family common loot profiles.
-- [x] Variable slots/stack quantities and weighted rarity.
-- [x] Vanilla enchanted gear pool.
-- [x] Custom rank 30–60 tome metadata and stable custom item IDs.
+## Phase 3 — Loot
+- [x] Mob-family common loot profiles, variable slots and stack counts.
+- [x] Weighted rarity and vanilla enchanted gear.
+- [x] Rare Golden Potato, Golden Porkchop and Golden Bread.
+- [x] Rare single-piece Emerald Armor reward.
+- [x] Configurable Liquid Gold Bucket placeholder drop chance.
 - [x] One custom equipment piece maximum per chest.
-- [x] Boss rarity bias without guaranteed named rewards.
-- [ ] Full mob-by-mob balancing and datapack-driven overrides.
-- [ ] Persist serialized result contents and test interruption/restart delivery semantics.
+- [ ] Custom Liquid Gold fluid flow, bucket placement/scooping and two-source infinite behaviour.
+- [ ] Persist serialized reward contents and test crash-safe delivery.
+- [ ] Full mob-by-mob balance and data-pack-driven overrides.
 
-## Phase 4 — Custom equipment and abilities
-- [ ] Implement item abilities, cooldowns, anti-stacking and multiplayer-safe event handlers.
+## Phase 4 — Items and abilities
+- [ ] Implement Liquid Gold's requested 10-second status abilities after exact effect list is supplied.
+- [ ] Implement named equipment/artifact abilities, cooldowns and anti-stacking.
 - [ ] Implement custom enchantment effects for ranks 30–60.
-- [ ] Add custom item models and sounds.
+- [ ] Add remaining custom item models/sounds.
 
 ## Phase 5 — Legend and bosses
-- [ ] Legend points, discoveries and per-player progression.
+- [ ] Legend points and discoveries.
 - [ ] Boss unlock states, summon/spawn systems and special boss reward flow.
 
-## Phase 6 — Release gate
-- [ ] Build and static validation.
-- [ ] Paper 26.3 server smoke test.
-- [ ] Resource-pack client test with screenshots/video.
-- [ ] Two-player multiplayer test.
-- [ ] Persistence/restart validation.
-- [ ] Final release artifact after all gates pass.
+## Phase 6 — Release
+- [ ] Real Paper 26.3 server smoke test.
+- [ ] Resource-pack visual tests and client screenshots/video.
+- [ ] Two-player multiplayer and restart validation.
+- [ ] Final release after all gates pass.

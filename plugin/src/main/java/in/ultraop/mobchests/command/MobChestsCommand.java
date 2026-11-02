@@ -41,11 +41,11 @@ public final class MobChestsCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(plugin.messages().color("&7Plugin: &f" + plugin.getDescription().getVersion()));
         sender.sendMessage(plugin.messages().color("&7Required Java: &f25"));
         sender.sendMessage(plugin.messages().color("&7Components: &fPlugin + Resource Pack (datapack scaffold)"));
-        sender.sendMessage(plugin.messages().color("&aInteraction prototype: &fAdult Cow freeze/open animation"));
-        sender.sendMessage(plugin.messages().color("&aOne-time GUI: &fClose -> lid shuts -> Cow AI restored"));
-        sender.sendMessage(plugin.messages().color("&aLoot engine: &fMob-family pools, variable stacks, weighted rarity"));
-        sender.sendMessage(plugin.messages().color("&eVisual interaction: &fAdult Cow only; Resource Pack required"));
-        sender.sendMessage(plugin.messages().color("&ePending: &fOther mob models, custom abilities, Legend and boss progression"));
+        sender.sendMessage(plugin.messages().color("&aInteraction models: &fAdult Cow body split + Creeper head lid"));
+        sender.sendMessage(plugin.messages().color("&aFreeze: &fAnchored with a subtle alternating tremble"));
+        sender.sendMessage(plugin.messages().color("&aLoot opening: &fFirework sound, upward burst and one GUI session"));
+        sender.sendMessage(plugin.messages().color("&aLoot: &fMob-family pools, golden foods, emerald armour, rare artifacts"));
+        sender.sendMessage(plugin.messages().color("&ePending: &fOther mob models, Liquid Gold fluid abilities, Legend and bosses"));
         sender.sendMessage(plugin.messages().color("&8Use &e/mobchests help &8for commands."));
         sender.sendMessage(plugin.messages().color("&6&l━━━━━━━━━━━━━━━━━━━━━━━━━━━━"));
     }
@@ -58,11 +58,13 @@ public final class MobChestsCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(plugin.messages().color("&6&lMOB CHESTS STATUS"));
         sender.sendMessage(plugin.messages().color("&7Plugin: &aEnabled"));
         sender.sendMessage(plugin.messages().color("&7Config: &aLoaded"));
-        sender.sendMessage(plugin.messages().color("&7Cow interaction: &aPrototype enabled"));
-        sender.sendMessage(plugin.messages().color("&7Cow chest open/close animation: &eRequires 26.3 resource pack"));
-        sender.sendMessage(plugin.messages().color("&7Mob-family loot generator: &aActive (used by Cow prototype)"));
-        sender.sendMessage(plugin.messages().color("&7Other mob interactions: &cDisabled pending visual models"));
-        sender.sendMessage(plugin.messages().color("&7Custom abilities / Legend / bosses: &cNot implemented"));
+        sender.sendMessage(plugin.messages().color("&7Cow body chest: &aPrototype enabled"));
+        sender.sendMessage(plugin.messages().color("&7Creeper head chest: &aPrototype enabled"));
+        sender.sendMessage(plugin.messages().color("&7Freeze tremble and loot burst: &aImplemented"));
+        sender.sendMessage(plugin.messages().color("&7Resource Pack: &eRequired for custom models and item art"));
+        sender.sendMessage(plugin.messages().color("&7Other mob models: &cNot enabled"));
+        sender.sendMessage(plugin.messages().color("&7Liquid Gold flow/abilities: &cNot implemented yet"));
+        sender.sendMessage(plugin.messages().color("&7Legend / boss progression: &cNot implemented"));
     }
 
     private void reload(CommandSender sender) {

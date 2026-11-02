@@ -5,46 +5,43 @@
 ![Minecraft](https://img.shields.io/badge/Minecraft-26.3-brightgreen)
 ![Platform](https://img.shields.io/badge/Platform-Paper-blue)
 ![Java](https://img.shields.io/badge/Java-25-orange)
-![Status](https://img.shields.io/badge/Status-Cow%20Visual%20Prototype-yellow)
+![Status](https://img.shields.io/badge/Status-Cow%20%2B%20Creeper%20Prototype-yellow)
 
-> **Current scope:** adult Cows are the only mob with the two-click freeze/open/close visual interaction. A mob-family loot generator is included, but additional mob interactions remain disabled until each split-body model is created and tested.
+> **Current visual-interaction scope:** adult Cows and Creepers. The Cow opens at the middle body seam; the Creeper opens its head as a hinged lid. Other mobs remain disabled until their own model/animation is ready.
 
-## Gameplay goal
+## Gameplay implemented in this branch
 
-Each supported vanilla mob becomes a one-time living treasure chest:
+1. First right-click freezes an adult Cow or Creeper in place. It does not sit, become a pet or get tamed.
+2. While frozen, the mob has a very subtle alternating 0.65-degree tremble by default. It is configurable and can be disabled.
+3. Second right-click starts its model-specific animation:
+   - Cow: upper body rotates from the y=8 middle seam; lower body stays as the base.
+   - Creeper: head rotates backward from the neck seam; the lower body and legs stay fixed.
+4. The opening uses chest/firework sounds and a particle burst. One or two real loot stacks (configurable maximum) are launched upward and outward. Those stacks are removed from the GUI first, so they cannot be duplicated.
+5. The remaining items are placed in one inventory session. Closing after taking all, some or no items consumes the chest.
+6. The lid closes, temporary display parts are removed and the original mob AI/physics state is restored. A frozen/open Creeper is disarmed; after the chest is consumed, its normal AI and fuse behaviour resume.
+7. Killing the mob afterwards gives ordinary vanilla drops and XP, not chest loot a second time.
 
-1. First right-click freezes it in place. It does not sit, become a pet or get tamed.
-2. Second right-click opens the body at its middle seam. The upper part rotates as a lid; the lower part stays as the base.
-3. Only one inventory session is allowed. Taking all, some or no items and closing the inventory consumes the chest.
-4. The lid closes, temporary display parts are removed and the original AI/physics state is restored.
-5. Afterwards the mob behaves normally. Killing it gives ordinary vanilla drops and XP, not a second chest reward.
+## Loot in this build
 
-## Implemented in this build
-
-- Adult Cow two-click freeze/open lifecycle.
-- Persistent one-time entity state and freeze anchor.
-- Resource-pack-backed Cow upper/lower ItemDisplay prototype.
-- Mob-family common loot profiles for multiple vanilla mob families.
-- Variable occupied slots and stack amounts, configurable weighted rarity and vanilla enchanted gear.
-- Custom rank 30–60 tome metadata and named custom artifact/equipment IDs.
-- One custom equipment piece maximum per chest; 10% default chance, replacing a normal loot slot.
-- A small boss rarity bias without guaranteed named rewards.
-- Configurable opening and closing animation duration.
-- Chunk/plugin recovery paths and ordinary Cow death drops/XP preservation.
-- No hard-coded world name or Multiverse dependency.
+- Mob-family common loot profiles, variable slots and stack sizes.
+- Weighted Common-to-Mythic rarity and vanilla enchanted gear.
+- Rare Golden Potato, Golden Porkchop and Golden Bread item models.
+- Rare Emerald Armor pieces (a single piece per custom-equipment roll, not a full set).
+- Rare Liquid Gold Bucket reward metadata with a configurable 7% default chest chance.
+- One custom equipment reward at most per chest by default (10% chance).
+- Custom tome rank metadata from 30–60, separate from vanilla enchantment levels.
 
 ## Important limitations
 
-- Only adult Cows currently use the chest interaction and split-body animation. Other mob loot families are prepared in code, but other mobs cannot yet be opened as chests.
-- Custom item names/IDs and custom enchantment ranks are metadata only. Their abilities and custom enchantment effects are not implemented yet.
-- Legend points, boss unlock progression and final data-pack-driven loot tables are not implemented.
-- The Cow model is stylized and does not replace the vanilla entity renderer. A real Minecraft 26.3 client with the resource pack must verify seam alignment, rotation and clipping. A successful CI build does not prove visual correctness.
+- Only adult Cows and Creepers currently use the visual chest interaction. Pig, Horse, Zombie, Skeleton, Squid, Sheep, Goat and other mobs remain disabled until their individual model and animation are implemented and tested.
+- Golden foods and Liquid Gold bucket use custom resource-pack item art. Emerald Armor is green-dyed leather armor with custom item metadata.
+- **Liquid Gold flow, bucket placement/scooping, infinite-source behaviour and its 10-second abilities are not implemented yet.** The current bucket is a safe, non-water custom item placeholder. The exact ability list still needs the effect screenshot.
+- Named custom equipment/artifact IDs are loot foundations. Their special powers, custom enchantment effects, Legend points and boss progression are not implemented.
+- The models are stylized display-entity illusions, not replacements for Minecraft's vanilla entity renderer. Real Paper 26.3 client testing must verify scale, hinge orientation, clipping, all-viewer synchronization and cleanup. CI cannot certify visual quality.
 
 ## Single-world / solo use
 
-This is a **Paper server plugin**, not a vanilla single-player mod. It works on a local Paper 26.3 server with one world and one player. It does not require multiple worlds, BungeeCord, Velocity or Multiverse. Put the plugin JAR in the local Paper server's plugins folder and install the resource pack on the Minecraft client.
-
-A normal vanilla single-player world does not load Paper plugins directly. To use this in a solo world, run a local Paper server and join it from your Minecraft client.
+This is a Paper server plugin, not a vanilla single-player mod. It works on one Paper 26.3 world with one player and does not require Multiverse, BungeeCord or Velocity. A normal vanilla single-player world does not load Paper plugins directly; use a local Paper server and join it from your Minecraft client.
 
 ## Requirements
 
@@ -64,6 +61,7 @@ From the repository root:
 ~~~bash
 gradle clean build
 python3 resource-pack/tools/package_packs.py
+python3 resource-pack/tools/validate_assets.py
 ~~~
 
 Windows:
@@ -71,16 +69,19 @@ Windows:
 ~~~powershell
 gradle.bat clean build
 py resource-pack/tools/package_packs.py
+py resource-pack/tools/validate_assets.py
 ~~~
 
-## Install and test the Cow prototype
+## Install and test
 
 1. Put the plugin JAR in the Paper server plugins folder.
 2. Install or host the resource-pack ZIP for the Minecraft client.
 3. Start Paper 26.3 with Java 25.
 4. Run /mobchests info.
-5. Right-click an adult Cow once to freeze it; right-click it again to open the animation and GUI.
-6. Close the GUI after taking all, some or none of the items. The chest is permanently consumed and the Cow should return to normal.
+5. Test an adult Cow: first right-click freezes with a faint sway; second right-click opens the middle seam.
+6. Test a Creeper: first right-click freezes and gently trembles without swelling/igniting; second right-click opens its head.
+7. Confirm one or two items burst upward and are collectible; remaining loot appears in the GUI.
+8. Close the GUI after taking all, some or no items. The mob returns to normal behaviour and the chest cannot reopen.
 
 ## Commands
 

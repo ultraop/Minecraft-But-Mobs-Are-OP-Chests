@@ -2,40 +2,47 @@
 
 **Target:** Minecraft Java 26.3 — Resource Pack format 97.1.
 
-## Cow chest visual prototype
+## Current mob models
 
-The current prototype uses two ItemDisplay entities with custom item models:
+### Cow
 
-- `cow_base`: lower body/base; remains fixed.
-- `cow_lid`: upper body/lid; rotates open around the middle seam.
+- cow_base: lower body/base; remains fixed.
+- cow_lid: upper body/lid; rotates from the y=8 middle seam.
 
-The original Cow remains the authoritative living entity and hitbox. It is hidden only during the open/GUI session. When the player closes the GUI—whether they took every item, some items or none—the lid animates shut, both temporary display parts are removed, and the Cow's original visibility, AI, awareness, gravity and collision settings are restored.
+### Creeper
 
-The custom resource pack is required. Without it, the ItemDisplay entities use the base item appearance.
+- creeper_base: lower body and legs; remains fixed.
+- creeper_head: head model; rotates backward from the neck seam like a chest lid.
 
-## Build
+The original living mob remains the server-side entity and hitbox. It is hidden during the animation/GUI session while temporary ItemDisplays show the split model parts. These are stylized models, not replacements for the vanilla client renderer.
+
+## Rare item art
+
+The pack includes custom item icons for Golden Potato, Golden Porkchop, Golden Bread and Liquid Gold Bucket. Emerald Armor currently uses green-dyed leather armor metadata.
+
+## Build and validate
 
 From the repository root:
 
-```bash
+~~~bash
 python resource-pack/tools/package_packs.py
-```
+python resource-pack/tools/validate_assets.py
+~~~
 
-This generates the Cow model PNG textures and creates:
-- `build/distributions/UltraOP-MobChests-ResourcePack.zip`
-- `build/distributions/UltraOP-MobChests-Datapack.zip`
+This generates mob/item PNG textures and creates:
+- build/distributions/UltraOP-MobChests-ResourcePack.zip
+- build/distributions/UltraOP-MobChests-Datapack.zip
 
 ## Visual QA gate
 
-The model is a stylized Cow proof of concept, not a copy of the exact vanilla Cow renderer. Before expanding to other mobs, test in Minecraft 26.3 for:
+Before calling the visual work complete, test in an actual 26.3 client:
 
-1. Scale and orientation from all sides.
-2. Exact alignment at the middle seam.
-3. Upper lid rotates around its hinge without sliding.
-4. Lower body remains still.
-5. No original Cow mesh remains visible while open.
-6. No floating display parts remain after GUI close.
-7. Player takes all, some or no items: every close path restores the Cow.
-8. Resource-pack reload, chunk unload/reload and server restart do not leave invisible mobs or orphaned displays.
+1. Cow model scale/orientation and exact middle seam.
+2. Creeper head hinge at the neck seam and stable lower body.
+3. No clipping during either lid rotation.
+4. No original mob mesh visible while displays are active.
+5. No floating display entities after GUI close, death, chunk unload or restart.
+6. All players see the same model and animation.
+7. Custom item icons render correctly in inventory and hotbar.
 
-Do not mark this visual prototype as final or glitch-free until these client-side tests pass.
+Do not claim glitch-free visuals until these client-side tests pass.

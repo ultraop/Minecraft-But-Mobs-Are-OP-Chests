@@ -2,9 +2,9 @@
 
 ## Implemented generator
 
-The Paper plugin contains a mob-family loot generator. The current Cow interaction calls it; common loot profiles are included for passive, undead, skeleton, spider, creeper, Nether, aquatic, End and boss families. Additional mob interactions remain disabled until their split-body visual models pass client QA.
+The Paper plugin contains mob-family common pools for passive, undead, skeleton, spider, creeper, Nether, aquatic, End and boss families. Only adult Cows and Creepers currently expose the two-click visual interaction.
 
-Each chest rolls a variable 4–8 occupied slots by default, with independently variable stack amounts. The configurable rarity weights are:
+Each chest rolls a variable 4–8 occupied stacks by default. Rarity weights are configurable and normalized:
 
 | Rarity | Default weight |
 |---|---:|
@@ -15,19 +15,28 @@ Each chest rolls a variable 4–8 occupied slots by default, with independently 
 | Legendary | 0.8 |
 | Mythic | 0.2 |
 
-The generator normalizes the weights, so they do not need to total exactly 100. Boss mobs receive a small rarity bias, never a guaranteed named reward.
+Boss mobs get a modest rarity bias, never a guaranteed named reward.
 
-## Enchantments and custom items
+## Rare custom rewards
 
-Rare pools can contain vanilla-enchanted gear. Custom enchantment tomes store a separate rank from 30–60 in item metadata. Custom artifacts and equipment store stable item IDs. These identifiers are foundations for future abilities; custom item abilities and custom enchantment effects are not active in this build.
+- Golden Potato, Golden Porkchop and Golden Bread: 6% default special-food chance per chest.
+- Liquid Gold Bucket placeholder: 7% default chance per chest, configurable between 0 and 100%.
+- Custom equipment: 10% default chance, at most one piece per chest.
+- Emerald Armor is currently a single randomly selected green-dyed leather armor piece, not a complete set.
+- Other custom IDs include Skybound Boots, Aetherguard Chestplate, Phantom Leggings, Stormcaller Bow, Infernal Edge, Voidwalker Helmet, Skull Scepter, Abyssal Heart, Warden Echo Relic, Dragon Wing Plate and Dragon Blast.
+- Custom enchantment tome metadata uses independent ranks 30–60; these are not vanilla enchantment levels.
 
-The custom equipment roll defaults to 10% and replaces an existing loot slot. A chest can therefore contain at most one custom equipment piece, never a guaranteed full armour set.
+A chest opening also ejects one or two real reward stacks into the world. Ejected stacks are cleared from the GUI inventory before spawning, so the same stack cannot be collected twice. Remaining stacks stay in the one-time GUI.
 
-Named custom equipment includes Skybound Boots, Aetherguard Chestplate, Phantom Leggings, Stormcaller Bow, Infernal Edge and Voidwalker Helmet. Named artifacts include Liquid Gold Bucket, Skull Scepter, Abyssal Heart, Warden Echo Relic, Dragon Wing Plate and Dragon Blast.
+## Liquid Gold implementation status
+
+The current Liquid Gold Bucket is a custom item placeholder with its own texture and PDC fluid ID. It intentionally uses an ordinary empty-bucket base item until the custom-fluid interaction is implemented, so it cannot accidentally place normal water.
+
+Still required: a gold-coloured water-like fluid renderer/simulation, bucket placement and scooping, flow updates, two-source infinite-source behaviour, and the requested 10-second abilities. The exact ability list must be based on the effect screenshot.
 
 ## Remaining loot work
 
-- Per-entity persisted serialized reward contents and crash-safe delivery semantics.
-- Fine-grained per-mob weights and complete 26.3 entity coverage.
-- Functional custom-item abilities, custom enchantment effects and cooldowns.
-- Data-pack-driven overrides and admin preview/test commands.
+- Crash-safe serialization of the generated inventory and ejected-item delivery.
+- Complete per-mob balance and data-pack-driven overrides.
+- Functional item abilities and cooldowns.
+- Functional custom enchantment effects.
