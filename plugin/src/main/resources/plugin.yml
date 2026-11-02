@@ -2,7 +2,7 @@ name: UltraOPMobChests
 version: 0.1.0-SNAPSHOT
 main: in.ultraop.mobchests.UltraOPMobChestsPlugin
 api-version: '26.3'
-description: Cow body-split and Creeper head-lid chest prototypes with rare mob loot.
+description: Resource-pack-free mob chest gameplay using vanilla entity poses and saved mob loot.
 authors: [UltraOP]
 website: https://github.com/ultraop/Minecraft-But-Mobs-Are-OP-Chests
 load: POSTWORLD
