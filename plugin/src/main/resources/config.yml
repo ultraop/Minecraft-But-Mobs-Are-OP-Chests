@@ -12,6 +12,11 @@ prototype:
   open-animation-ticks: 10
   close-animation-ticks: 8
 
+freeze:
+  subtle-tremble-enabled: true
+  tremble-interval-ticks: 6
+  tremble-angle-degrees: 0.65
+
 interaction:
   first-right-click-freezes: true
   second-right-click-opens: true
@@ -24,6 +29,9 @@ loot:
   minimum-item-stacks: 4
   maximum-item-stacks: 8
   custom-equipment-chance: 0.10
+  liquid-gold-chance: 0.07
+  golden-food-chance: 0.06
+  burst-max-stacks: 2
   prevent-full-armor-set-per-chest: true
 
 rarity:
