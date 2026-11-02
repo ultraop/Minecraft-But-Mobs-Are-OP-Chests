@@ -244,8 +244,8 @@ public final class MobChestListener implements Listener {
      * the vanilla entity pitch is driven toward -90 degrees for the lid pose.
      */
     private void applyHeadPose(Mob mob, Location anchor, float pitch) {
-        mob.setBodyYaw(anchor.getYaw());
         mob.setRotation(anchor.getYaw(), Math.max(-90.0F, Math.min(90.0F, pitch)));
+        mob.setBodyYaw(anchor.getYaw());
     }
 
     private void beginOpening(Mob mob, Player player) {
@@ -289,9 +289,8 @@ public final class MobChestListener implements Listener {
         mob.getWorld().playSound(effectLocation, Sound.ENTITY_FIREWORK_ROCKET_LAUNCH, 0.55F, 1.2F);
         mob.getWorld().spawnParticle(Particle.END_ROD, effectLocation, 8, 0.12, 0.12, 0.12, 0.025);
 
-        float originalPitch = anchor.getPitch();
         float currentPitch = mob.getPitch();
-        animatePitch(mob, currentPitch, -90.0F,
+        animatePitch(mob, currentPitch, plugin.settings().openingHeadPitchDegrees(),
                 plugin.settings().openAnimationTicks(), OPENING, () -> {
                     if (!mob.isValid() || mob.isDead()) return;
                     if (!player.isOnline()) {
@@ -506,8 +505,8 @@ public final class MobChestListener implements Listener {
 
         Location anchor = readAnchor(mob);
         if (anchor != null && anchor.getWorld().equals(mob.getWorld())) {
-            mob.setBodyYaw(anchor.getYaw());
             mob.setRotation(anchor.getYaw(), anchor.getPitch());
+            mob.setBodyYaw(anchor.getYaw());
         }
         if (mob instanceof Creeper creeper) disarmCreeper(creeper);
 
@@ -556,7 +555,7 @@ public final class MobChestListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void protectOpeningMob(EntityDamageEvent event) {
-        if (event.getEntity() instanceof Mob mob && isSupported(mob)
+        if (event.getEntity() instanceof Mob mob
                 && (OPENING.equals(getState(mob)) || LOOT_OPEN.equals(getState(mob))
                 || CLOSING.equals(getState(mob)))) {
             event.setCancelled(true);
@@ -573,7 +572,7 @@ public final class MobChestListener implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onMobDeath(EntityDeathEvent event) {
-        if (!(event.getEntity() instanceof Mob mob) || !isSupported(mob)) return;
+        if (!(event.getEntity() instanceof Mob mob)) return;
         UUID id = mob.getUniqueId();
         stopTask(freezeTasks.remove(id));
         stopTask(poseTasks.remove(id));
