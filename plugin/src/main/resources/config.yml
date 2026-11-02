@@ -25,7 +25,6 @@ loot:
   maximum-item-stacks: 8
   custom-equipment-chance: 0.10
   prevent-full-armor-set-per-chest: true
-  persist-result-per-entity: true
 
 rarity:
   common: 70.0
