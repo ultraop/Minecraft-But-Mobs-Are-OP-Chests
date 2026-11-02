@@ -1,35 +1,28 @@
 # Architecture
 
 ## Target
-Minecraft Java 26.3, Paper server, Java 25. Main implementation: Paper plugin. Companion data: datapack. Client visuals: server resource pack.
+Minecraft Java 26.3, Paper server, Java 25. The main implementation is a Paper plugin. The companion datapack and resource pack provide game data and visuals.
 
-The plugin owns all authoritative gameplay state. The datapack provides data-driven loot and progression defaults. The resource pack supplies models, textures, icons and sounds.
+The plugin owns authoritative gameplay state. The datapack is intended for data-driven loot/progression defaults. The resource pack supplies model and texture assets. The current datapack is still a scaffold; the current Cow model is the only implemented split-body visual.
 
 ## Modules
 - interaction: first/second right-click state machine
 - entity: persistent state and AI handling
 - animation: display/model-part animation
-- loot: weighted mob-specific tables and one-time result persistence
+- loot: mob-family weighted reward generator
 - inventory: chest GUI and session safety
-- items: custom items, lore and abilities
-- enchantments: custom ranks and effects
-- progression: Legend points and discoveries
-- boss: unlocks, spawn eggs and boss reward flow
-- storage: durable entity/player data
-- command: /mobchests command tree
+- items/enchantments: item IDs and custom rank metadata; abilities/effects remain future work
+- progression/boss: future Legend and boss systems
 
 ## Visual strategy and limitation
-Paper does not replace the vanilla client renderer. The initial approach uses resource-pack-backed models and server-controlled display/model parts with synchronized transformations. Prototype one cow first: upper half as hinged lid, lower half as fixed base, with no clipping or duplicate body.
+Paper does not replace the vanilla client entity renderer. The prototype hides an adult Cow during the open session and uses resource-pack-backed ItemDisplays for its upper and lower parts. The model is stylized, not an exact copy of the vanilla Cow renderer.
 
-If the desired split-body effect cannot be achieved cleanly, document that limitation and switch to a Fabric client mod for full renderer/model replacement. Do not claim that a display-entity illusion is a native mob-model replacement.
+The same display technique must not be assumed to fit every mob shape. Each additional model requires separate geometry and client visual QA. If Paper display entities cannot achieve the required split-body quality, a Fabric client renderer may be necessary.
 
 ## State machine
-NORMAL -> FROZEN -> OPENING -> LOOT_SESSION -> LOOTED -> VANILLA_DEATH
+NORMAL -> FROZEN -> OPENING -> LOOT_OPEN -> CLOSING -> LOOTED
 
-First click freezes without taming/sitting. Second click opens. Generate and persist loot once before GUI display. Reject simultaneous sessions. GUI close consumes the only opening and discards uncollected items. Restore normal AI afterwards. Preserve vanilla drops and XP when the mob later dies. Never grant chest loot on death.
+First click freezes without taming/sitting. Second click opens. Only one inventory session is allowed. GUI close consumes the opening even when no items were taken. Restore original AI/physics state afterwards. Preserve ordinary vanilla death drops and XP. Never grant chest loot again on death.
 
-## Persistence
-Use a storage abstraction (SQLite suggested) with schema versioning. Entity state and player progression survive chunk unload/reload and restarts. Never identify a mob by entity type alone.
-
-## Data ownership
-Plugin: gameplay state and loot authority. Datapack: reloadable tables/default data. Resource pack: visual-only assets.
+## Persistence and scope
+The mob's state is stored in its PersistentDataContainer. The plugin scans loaded chunks in every loaded world and does not depend on a world name, so a one-world Paper setup is supported. The current runtime interaction is still Cow-only. Durable reward-content serialization and full crash-safe delivery are remaining work.

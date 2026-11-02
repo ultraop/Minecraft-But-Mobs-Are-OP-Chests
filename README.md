@@ -5,115 +5,91 @@
 ![Minecraft](https://img.shields.io/badge/Minecraft-26.3-brightgreen)
 ![Platform](https://img.shields.io/badge/Platform-Paper-blue)
 ![Java](https://img.shields.io/badge/Java-25-orange)
-![Status](https://img.shields.io/badge/Status-Cow%20Prototype-yellow)
+![Status](https://img.shields.io/badge/Status-Cow%20Visual%20Prototype-yellow)
 
-> **Current build:** Cow-only interaction and split-body visual prototype. The full all-mob loot system, custom equipment, Legend progression and boss unlocks are not yet implemented.
+> **Current scope:** adult Cows are the only mob with the two-click freeze/open/close visual interaction. A mob-family loot generator is included, but additional mob interactions remain disabled until each split-body model is created and tested.
 
 ## Gameplay goal
 
-Every supported vanilla mob becomes a one-time, living treasure chest:
+Each supported vanilla mob becomes a one-time living treasure chest:
 
-1. **First right-click:** freeze the mob in place. It does not sit, become a pet or get tamed.
-2. **Second right-click:** open the mob's body at its middle seam. The upper part rotates like a chest lid; the lower part stays as the base.
-3. **One inventory session:** loot is shown once. Taking all, some or no items and closing the inventory consumes the opening.
-4. **Close animation:** close the lid, remove temporary display parts and restore the mob's original AI, awareness, gravity, visibility and collision settings.
-5. **Afterwards:** the mob behaves normally again. Killing it later gives its ordinary vanilla drops and XP, not extra chest loot.
+1. First right-click freezes it in place. It does not sit, become a pet or get tamed.
+2. Second right-click opens the body at its middle seam. The upper part rotates as a lid; the lower part stays as the base.
+3. Only one inventory session is allowed. Taking all, some or no items and closing the inventory consumes the chest.
+4. The lid closes, temporary display parts are removed and the original AI/physics state is restored.
+5. Afterwards the mob behaves normally. Killing it gives ordinary vanilla drops and XP, not a second chest reward.
 
-## Current proof of concept
+## Implemented in this build
 
-The initial visual target is an **adult Cow only**.
+- Adult Cow two-click freeze/open lifecycle.
+- Persistent one-time entity state and freeze anchor.
+- Resource-pack-backed Cow upper/lower ItemDisplay prototype.
+- Mob-family common loot profiles for multiple vanilla mob families.
+- Variable occupied slots and stack amounts, configurable weighted rarity and vanilla enchanted gear.
+- Custom rank 30–60 tome metadata and named custom artifact/equipment IDs.
+- One custom equipment piece maximum per chest; 10% default chance, replacing a normal loot slot.
+- A small boss rarity bias without guaranteed named rewards.
+- Configurable opening and closing animation duration.
+- Chunk/plugin recovery paths and ordinary Cow death drops/XP preservation.
+- No hard-coded world name or Multiverse dependency.
 
-- The real Cow remains the server-side entity and hitbox.
-- During the open session, the real Cow is hidden and two resource-pack-backed ItemDisplays represent the upper/lower body.
-- The upper model interpolates open and closed; the lower model stays fixed.
-- The inventory close path restores the Cow regardless of how many items were taken.
-- The state is stored in the entity PersistentDataContainer.
-- Chunk unload/reload and plugin enable/disable have recovery paths to avoid stuck invisible or frozen Cows.
-- Damage is cancelled only while the Cow is opening or its chest inventory is open. Once looted, normal damage/death returns.
+## Important limitations
 
-**Important:** This is a stylized Cow model proof of concept, not yet a verified copy of the vanilla Cow renderer. The client-side resource pack and in-game visual QA are required before claiming that the animation is glitch-free or extending it to all mobs.
+- Only adult Cows currently use the chest interaction and split-body animation. Other mob loot families are prepared in code, but other mobs cannot yet be opened as chests.
+- Custom item names/IDs and custom enchantment ranks are metadata only. Their abilities and custom enchantment effects are not implemented yet.
+- Legend points, boss unlock progression and final data-pack-driven loot tables are not implemented.
+- The Cow model is stylized and does not replace the vanilla entity renderer. A real Minecraft 26.3 client with the resource pack must verify seam alignment, rotation and clipping. A successful CI build does not prove visual correctness.
 
-## Components
+## Single-world / solo use
 
-| Component | Responsibility |
-|---|---|
-| `plugin/` | Interaction state, animation lifecycle, GUI session, loot test, persistence, commands |
-| `datapack/` | Future mob loot tables, tags, recipes, advancements and data-driven defaults |
-| `resource-pack/` | Cow split-body models now; future mob/item models, textures, GUI art and sounds |
-| `docs/` | Architecture, commands, gameplay, loot, custom items, roadmap and testing |
+This is a **Paper server plugin**, not a vanilla single-player mod. It works on a local Paper 26.3 server with one world and one player. It does not require multiple worlds, BungeeCord, Velocity or Multiverse. Put the plugin JAR in the local Paper server's plugins folder and install the resource pack on the Minecraft client.
 
-The plugin owns gameplay state. The datapack provides data. The resource pack provides visuals.
+A normal vanilla single-player world does not load Paper plugins directly. To use this in a solo world, run a local Paper server and join it from your Minecraft client.
 
-## Target environment
+## Requirements
 
 | Requirement | Target |
 |---|---|
-| Minecraft | 26.3 |
-| Server | Paper |
+| Minecraft Java | 26.3 |
+| Server | Paper 26.3 |
 | Java | 25 |
-| Build | Gradle 9.5.1 |
+| Gradle | 9.5.1 |
 | Client gameplay mod | Not required |
-| Custom visuals | Server-delivered or manually installed resource pack |
+| Custom visuals | Resource pack required |
 
 ## Build
 
-Requires a Java 25 JDK and Gradle 9.5.1.
+From the repository root:
 
-```bash
+~~~bash
 gradle clean build
 python3 resource-pack/tools/package_packs.py
-```
+~~~
 
 Windows:
 
-```powershell
+~~~powershell
 gradle.bat clean build
 py resource-pack/tools/package_packs.py
-```
+~~~
 
-Outputs:
-- Plugin JAR: `plugin/build/libs/`
-- Datapack ZIP: `build/distributions/UltraOP-MobChests-Datapack.zip`
-- Resource-pack ZIP: `build/distributions/UltraOP-MobChests-ResourcePack.zip`
+## Install and test the Cow prototype
 
-GitHub Actions builds the plugin and companion ZIPs and uploads them as one workflow artifact.
-
-## Install prototype
-
-1. Build the plugin and place its JAR in Paper's `plugins/` directory.
-2. Build the resource pack using the command above.
-3. Install or host `UltraOP-MobChests-ResourcePack.zip` and make the client accept it.
-4. Start Paper 26.3 using Java 25.
-5. Run `/mobchests info`.
-6. Test with an adult Cow: first right-click freezes; second right-click starts the open animation and inventory. Close the inventory with all, some or none of the items taken; the Cow should close and resume normal behavior.
-
-The prototype currently supports Cow only. Other mobs are deliberately not intercepted yet.
+1. Put the plugin JAR in the Paper server plugins folder.
+2. Install or host the resource-pack ZIP for the Minecraft client.
+3. Start Paper 26.3 with Java 25.
+4. Run /mobchests info.
+5. Right-click an adult Cow once to freeze it; right-click it again to open the animation and GUI.
+6. Close the GUI after taking all, some or none of the items. The chest is permanently consumed and the Cow should return to normal.
 
 ## Commands
 
-All commands use one root: `/mobchests`.
-
 | Command | Permission | Purpose |
 |---|---|---|
-| `/mobchests info` | Everyone | Single information/version panel: plugin, Minecraft target, Java, components and feature status |
-| `/mobchests help` | Everyone | Command guide |
-| `/mobchests status` | Everyone | Runtime and prototype status |
-| `/mobchests reload` | `ultraopmobchests.admin` | Reload configuration |
-| `/mobchests loot preview <mob>` | Admin | Planned: inspect a mob's loot pools |
-| `/mobchests loot test <mob> [rolls]` | Admin | Planned: simulate loot for balance |
-| `/mobchests points <player>` | Admin | Planned: inspect Legend points |
-| `/mobchests legend [player]` | Everyone | Planned: show Legend progression |
-| `/mobchests boss status [player]` | Everyone | Planned: boss unlock status |
-
-`/mobchests info` is the only version/build information command; there is no separate `version` command.
-
-## Next implementation phases
-
-1. Manually verify Cow geometry, seam alignment, open/close animation and cleanup in a real 26.3 client.
-2. Test two players, player disconnect, entity death, chunk unload/reload and server restart.
-3. Extract the animation pipeline into per-mob model definitions.
-4. Implement the full data-driven mob-specific loot engine with varied quantities, rarity and rare custom gear.
-5. Add custom item abilities, Legend points and boss progression.
+| /mobchests info | Everyone | Version and implemented-scope information |
+| /mobchests help | Everyone | Command guide |
+| /mobchests status | Everyone | Runtime and prototype status |
+| /mobchests reload | ultraopmobchests.admin | Reload configuration |
 
 ## Documentation
 
@@ -129,4 +105,4 @@ All commands use one root: `/mobchests`.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT — see LICENSE.
