@@ -4,7 +4,7 @@ import in.ultraop.mobchests.UltraOPMobChestsPlugin;
 import in.ultraop.mobchests.animation.CowChestAnimator;
 import in.ultraop.mobchests.animation.CowChestAnimator.AnimationPair;
 import in.ultraop.mobchests.inventory.MobChestInventoryHolder;
-import in.ultraop.mobchests.loot.CowLootGenerator;
+import in.ultraop.mobchests.loot.MobLootGenerator;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
@@ -98,7 +98,7 @@ public final class MobChestListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onMobRightClick(PlayerInteractEntityEvent event) {
-        if (event.getHand() != org.bukkit.inventory.EquipmentSlot.HAND) {
+        if (!plugin.settings().cowPrototypeEnabled() || event.getHand() != org.bukkit.inventory.EquipmentSlot.HAND) {
             return;
         }
         if (!(event.getRightClicked() instanceof Cow cow)) {
@@ -213,13 +213,14 @@ public final class MobChestListener implements Listener {
         setState(cow, OPENING);
         applyFrozenState(cow);
 
+        int openTicks = plugin.settings().openAnimationTicks();
         AnimationPair pair;
         try {
             pair = animator.create(cow);
             animations.put(id, pair);
             cow.setInvisible(true);
             cow.getWorld().playSound(cow.getLocation(), Sound.BLOCK_CHEST_OPEN, 0.9F, 1.0F);
-            animator.open(pair);
+            animator.open(pair, openTicks);
         } catch (RuntimeException exception) {
             plugin.getLogger().severe("Cow chest animation could not start for " + id + ": " + exception.getMessage());
             recoverToFrozen(cow);
@@ -237,7 +238,7 @@ public final class MobChestListener implements Listener {
             }
             setState(cow, LOOT_OPEN);
             try {
-                Inventory inventory = CowLootGenerator.create(id);
+                Inventory inventory = MobLootGenerator.create(id, cow.getType(), plugin);
                 player.openInventory(inventory);
                 player.sendActionBar("Take what you need. Closing this inventory uses this mob chest permanently.");
             } catch (RuntimeException exception) {
@@ -245,7 +246,7 @@ public final class MobChestListener implements Listener {
                 consumeAndRestore(cow, false);
                 player.sendMessage("§cThe chest inventory failed to open. The Cow has been safely restored.");
             }
-        }, 10L);
+        }, openTicks);
         openTasks.put(id, task);
     }
 
@@ -288,13 +289,14 @@ public final class MobChestListener implements Listener {
         AnimationPair pair = animations.get(mobId);
         if (animateClose && cow.isValid() && pair != null && pair.isValid()) {
             cow.getWorld().playSound(cow.getLocation(), Sound.BLOCK_CHEST_CLOSE, 0.9F, 1.0F);
-            animator.close(pair);
+            int closeTicks = plugin.settings().closeAnimationTicks();
+            animator.close(pair, closeTicks);
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
                 animator.remove(animations.remove(mobId));
                 activeMobs.remove(mobId);
                 setState(cow, LOOTED);
                 restoreNormalState(cow);
-            }, 8L);
+            }, plugin.settings().closeAnimationTicks());
         } else {
             animator.remove(animations.remove(mobId));
             activeMobs.remove(mobId);
