@@ -5,6 +5,7 @@ import in.ultraop.mobchests.inventory.MobChestInventoryHolder;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
+import org.bukkit.Color;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Registry;
@@ -13,6 +14,7 @@ import org.bukkit.entity.EntityType;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.LeatherArmorMeta;
 import org.bukkit.persistence.PersistentDataType;
 
 import java.util.ArrayList;
@@ -61,11 +63,22 @@ public final class MobLootGenerator {
             inventory.setItem(slots.get(i), reward(type, rollRarity(type, plugin, random), plugin, random));
         }
 
-        // One custom equipment roll maximum. It replaces a normal slot.
-        double gearChance = Math.max(0.0, Math.min(1.0,
-                plugin.getConfig().getDouble("loot.custom-equipment-chance", 0.10)));
-        if (stacks > 0 && random.nextDouble() < gearChance) {
-            inventory.setItem(slots.get(random.nextInt(stacks)), customEquipment(plugin, random));
+        // Special rewards occupy fresh slots; they never overwrite another reward.
+        int nextSpecialSlot = stacks;
+        double liquidGoldChance = chance(plugin, "loot.liquid-gold-chance", 0.07);
+        if (stacks > 0 && nextSpecialSlot < slots.size() && random.nextDouble() < liquidGoldChance) {
+            inventory.setItem(slots.get(nextSpecialSlot++), liquidGoldBucket(plugin));
+        }
+
+        double goldenFoodChance = chance(plugin, "loot.golden-food-chance", 0.06);
+        if (stacks > 0 && nextSpecialSlot < slots.size() && random.nextDouble() < goldenFoodChance) {
+            inventory.setItem(slots.get(nextSpecialSlot++), goldenFood(plugin, random));
+        }
+
+        // At most one custom equipment piece per chest, never a full set.
+        double gearChance = chance(plugin, "loot.custom-equipment-chance", 0.10);
+        if (stacks > 0 && nextSpecialSlot < slots.size() && random.nextDouble() < gearChance) {
+            inventory.setItem(slots.get(nextSpecialSlot), customEquipment(plugin, random));
         }
         return inventory;
     }
@@ -98,6 +111,10 @@ public final class MobLootGenerator {
 
     private static double weight(UltraOPMobChestsPlugin plugin, String key, double fallback) {
         return Math.max(0.0, plugin.getConfig().getDouble("rarity." + key, fallback));
+    }
+
+    private static double chance(UltraOPMobChestsPlugin plugin, String path, double fallback) {
+        return Math.max(0.0, Math.min(1.0, plugin.getConfig().getDouble(path, fallback)));
     }
 
     private static ItemStack reward(EntityType type, Rarity rarity,
@@ -207,21 +224,61 @@ public final class MobLootGenerator {
     private static ItemStack customEquipment(UltraOPMobChestsPlugin plugin,
                                              ThreadLocalRandom random) {
         String[] ids = {"skybound_boots", "aetherguard_chestplate", "phantom_leggings",
-                "stormcaller_bow", "infernal_edge", "voidwalker_helmet"};
+                "stormcaller_bow", "infernal_edge", "voidwalker_helmet",
+                "emerald_helmet", "emerald_chestplate", "emerald_leggings", "emerald_boots"};
         Material[] materials = {Material.DIAMOND_BOOTS, Material.DIAMOND_CHESTPLATE,
                 Material.DIAMOND_LEGGINGS, Material.BOW, Material.NETHERITE_SWORD,
-                Material.DIAMOND_HELMET};
+                Material.DIAMOND_HELMET, Material.LEATHER_HELMET, Material.LEATHER_CHESTPLATE,
+                Material.LEATHER_LEGGINGS, Material.LEATHER_BOOTS};
         int index = random.nextInt(ids.length);
-        return taggedArtifact(plugin, ids[index], title(ids[index]), materials[index]);
+        ItemStack item = taggedArtifact(plugin, ids[index], title(ids[index]), materials[index]);
+        ItemMeta meta = item.getItemMeta();
+        if (meta instanceof LeatherArmorMeta leather) {
+            leather.setColor(Color.fromRGB(47, 190, 91));
+            leather.displayName(Component.text(title(ids[index]), NamedTextColor.GREEN));
+            item.setItemMeta(leather);
+        }
+        return item;
+    }
+
+    private static ItemStack goldenFood(UltraOPMobChestsPlugin plugin, ThreadLocalRandom random) {
+        String[] ids = {"golden_potato", "golden_porkchop", "golden_bread"};
+        String[] names = {"Golden Potato", "Golden Porkchop", "Golden Bread"};
+        Material[] materials = {Material.BAKED_POTATO, Material.COOKED_PORKCHOP, Material.BREAD};
+        int index = random.nextInt(ids.length);
+        ItemStack item = taggedArtifact(plugin, ids[index], names[index], materials[index]);
+        ItemMeta meta = item.getItemMeta();
+        meta.setItemModel(new NamespacedKey("ultraop_mobchests", ids[index]));
+        meta.lore(List.of(
+                Component.text("Rare golden food", NamedTextColor.GOLD),
+                Component.text("A custom UltraOP reward.", NamedTextColor.GRAY)));
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private static ItemStack liquidGoldBucket(UltraOPMobChestsPlugin plugin) {
+        ItemStack item = taggedArtifact(plugin, "liquid_gold_bucket",
+                "Liquid Gold Bucket", Material.WATER_BUCKET);
+        ItemMeta meta = item.getItemMeta();
+        meta.setItemModel(new NamespacedKey("ultraop_mobchests", "liquid_gold_bucket"));
+        meta.getPersistentDataContainer().set(
+                new NamespacedKey(plugin, "custom_fluid_id"),
+                PersistentDataType.STRING, "liquid_gold");
+        meta.lore(List.of(
+                Component.text("Rare custom fluid", NamedTextColor.GOLD),
+                Component.text("Flowing golden water-like fluid.", NamedTextColor.GRAY),
+                Component.text("Fluid placement behaviour is being added separately.", NamedTextColor.DARK_GRAY)));
+        item.setItemMeta(meta);
+        return item;
     }
 
     private static ItemStack artifact(UltraOPMobChestsPlugin plugin,
                                       ThreadLocalRandom random, String rarityLabel) {
-        String[] ids = {"liquid_gold_bucket", "skull_scepter", "abyssal_heart",
-                "warden_echo_relic", "dragon_wing_plate", "dragon_blast"};
-        String[] names = {"Liquid Gold Bucket", "Skull Scepter", "Abyssal Heart",
-                "Warden Echo Relic", "Dragon Wing Plate", "Dragon Blast"};
-        Material[] materials = {Material.BUCKET, Material.BLAZE_ROD, Material.HEART_OF_THE_SEA,
+        String[] ids = {"skull_scepter", "abyssal_heart", "warden_echo_relic",
+                "dragon_wing_plate", "dragon_blast"};
+        String[] names = {"Skull Scepter", "Abyssal Heart", "Warden Echo Relic",
+                "Dragon Wing Plate", "Dragon Blast"};
+        Material[] materials = {Material.BLAZE_ROD, Material.HEART_OF_THE_SEA,
                 Material.ECHO_SHARD, Material.ELYTRA, Material.FIRE_CHARGE};
         int index = random.nextInt(ids.length);
         ItemStack item = taggedArtifact(plugin, ids[index], names[index], materials[index]);
