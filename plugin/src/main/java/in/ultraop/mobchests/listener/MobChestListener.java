@@ -113,8 +113,7 @@ public final class MobChestListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onMobRightClick(PlayerInteractEntityEvent event) {
-        if (!plugin.settings().interactionsEnabled(mob.getType())
-                || event.getHand() != org.bukkit.inventory.EquipmentSlot.HAND
+        if (event.getHand() != org.bukkit.inventory.EquipmentSlot.HAND
                 || !(event.getRightClicked() instanceof Mob mob)
                 || !isSupported(mob)) {
             return;
