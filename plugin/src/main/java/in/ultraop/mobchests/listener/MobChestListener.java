@@ -167,13 +167,16 @@ public final class MobChestListener implements Listener {
     private void applyFrozenState(Mob mob) {
         // Keep the entity's look controller available for Mob.lookAt(),
         // while awareness=false prevents ordinary autonomous behaviour.
+        // LookController only advances while the Mob is aware. Keep the
+        // controller ticking, but pin position, gravity and navigation every tick.
         mob.setAI(true);
-        mob.setAware(false);
+        mob.setAware(true);
         mob.setGravity(false);
         mob.setVelocity(new Vector(0.0, 0.0, 0.0));
         mob.setFallDistance(0.0F);
         mob.setTarget(null);
         mob.getPathfinder().stopPathfinding();
+        mob.setAggressive(false);
         if (mob instanceof Creeper creeper) {
             disarmCreeper(creeper);
         }
@@ -354,6 +357,12 @@ public final class MobChestListener implements Listener {
                 return;
             }
 
+            applyFrozenState(mob);
+            if (!mob.getWorld().equals(anchor.getWorld())
+                    || mob.getLocation().distanceSquared(anchor) > 0.0001) {
+                mob.teleport(anchor);
+            }
+
             elapsed[0]++;
             float progress = Math.min(1.0F, elapsed[0] / (float) duration);
             float eased = progress * progress * (3.0F - 2.0F * progress);
@@ -378,8 +387,11 @@ public final class MobChestListener implements Listener {
 
         Collections.shuffle(occupied, ThreadLocalRandom.current());
         int configuredBurst = Math.max(0,
-                Math.min(4, plugin.getConfig().getInt("loot.burst-max-stacks", 2)));
-        int burstStacks = Math.min(configuredBurst, occupied.size());
+                Math.min(36, plugin.getConfig().getInt("loot.burst-max-stacks", 18)));
+        double burstRatio = Math.max(0.0, Math.min(1.0,
+                plugin.getConfig().getDouble("loot.burst-ratio", 0.50)));
+        int halfBurst = (int) Math.ceil(occupied.size() * burstRatio);
+        int burstStacks = Math.min(occupied.size(), Math.min(configuredBurst, halfBurst));
         Location origin = mob.getLocation().clone()
                 .add(0.0, Math.max(0.9, mob.getHeight() * 0.75), 0.0);
         ThreadLocalRandom random = ThreadLocalRandom.current();
@@ -392,12 +404,16 @@ public final class MobChestListener implements Listener {
             // Remove from the GUI before spawning a real collectible item.
             ItemStack ejected = stack.clone();
             inventory.clear(slot);
-            Item item = mob.getWorld().dropItem(origin, ejected);
-            item.setPickupDelay(12);
+            Location spawnAt = origin.clone().add(
+                    random.nextDouble(-0.16, 0.16),
+                    random.nextDouble(-0.08, 0.12),
+                    random.nextDouble(-0.16, 0.16));
+            Item item = mob.getWorld().dropItem(spawnAt, ejected);
+            item.setPickupDelay(14);
 
             double angle = random.nextDouble(0.0, Math.PI * 2.0);
-            double horizontal = random.nextDouble(0.12, 0.30);
-            double vertical = random.nextDouble(0.48, 0.72);
+            double horizontal = random.nextDouble(0.28, 0.62);
+            double vertical = random.nextDouble(0.72, 1.05);
             item.setVelocity(new Vector(
                     Math.cos(angle) * horizontal,
                     vertical,
@@ -405,10 +421,10 @@ public final class MobChestListener implements Listener {
         }
 
         mob.getWorld().playSound(origin, Sound.ENTITY_FIREWORK_ROCKET_BLAST, 0.75F, 1.05F);
-        mob.getWorld().spawnParticle(Particle.CLOUD, origin, 10, 0.24, 0.18, 0.24, 0.035);
-        mob.getWorld().spawnParticle(Particle.TOTEM_OF_UNDYING, origin, 15, 0.26, 0.25, 0.26, 0.12);
-        mob.getWorld().spawnParticle(Particle.CRIT, origin, 12, 0.20, 0.22, 0.20, 0.10);
-        mob.getWorld().spawnParticle(Particle.END_ROD, origin, 8, 0.22, 0.22, 0.22, 0.08);
+        mob.getWorld().spawnParticle(Particle.CLOUD, origin, 22, 0.36, 0.30, 0.36, 0.055);
+        mob.getWorld().spawnParticle(Particle.TOTEM_OF_UNDYING, origin, 30, 0.42, 0.36, 0.42, 0.18);
+        mob.getWorld().spawnParticle(Particle.CRIT, origin, 24, 0.38, 0.32, 0.38, 0.16);
+        mob.getWorld().spawnParticle(Particle.END_ROD, origin, 16, 0.40, 0.38, 0.40, 0.12);
     }
 
     private void persistInventory(Mob mob, Inventory inventory) {
