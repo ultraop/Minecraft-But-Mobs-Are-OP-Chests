@@ -22,7 +22,7 @@ The old ItemDisplay/resource-pack animation path is no longer used by the intera
 1. First right-click freezes a Mob at its saved position. It gives a very subtle head-look tremble, not a sit/tame animation.
 2. Second right-click smoothly instructs the Mob head to look almost straight upward (88 degrees by default), while its body yaw is held in place.
 3. A chest/firework sound and a small particle burst play.
-4. Up to two actual loot stacks pop upward/outward. Those stacks are removed from the GUI before spawning, preventing duplicate collection.
+4. 50% of the generated item stacks pop outward in a stronger radial burst. Those stacks are removed from the GUI before spawning, preventing duplicate collection.
 5. The remaining items are shown in a one-time inventory. Closing after taking all, some or none consumes the chest.
 6. The vanilla pose returns to its original rotation and the mob's saved AI/awareness/gravity/collision settings are restored.
 7. The mob can then behave and be killed normally. If the chest was used, its remaining saved chest contents replace vanilla mob drops and XP. If its chest was never opened, normal vanilla drops remain.
@@ -35,7 +35,7 @@ The visual method is intentionally generic and resource-pack-free. It uses Paper
 
 ## Loot
 
-- Variable stack count and quantity.
+- Variable 14–18 base item stacks per chest (plus special rewards), with larger stack quantities.
 - Mob-family drops and broad utility loot such as paper, compass, map, clock, book, arrows, metals and crafting materials.
 - Dimension-aware progression rewards:
   - Overworld: obsidian, flint and steel, iron and navigation supplies.
@@ -43,7 +43,7 @@ The visual method is intentionally generic and resource-pack-free. It uses Paper
   - End: Ender-related materials, shulker shells, chorus and Dragon-related rare items.
 - Rare Golden Potato, Golden Porkchop and Golden Bread names/IDs.
 - Green-dyed Emerald Armor pieces, one equipment piece maximum per chest.
-- Rare Liquid Gold Bucket placeholder metadata.
+- Liquid Gold Bucket reward with a 35% test-build drop chance; its icon uses a vanilla orange-filled bucket.
 - Custom enchantment tome rank metadata from 30–60, separate from vanilla levels.
 
 Without a resource pack, golden foods use vanilla item artwork with their custom names/lore; custom item textures are not supplied by this build.
