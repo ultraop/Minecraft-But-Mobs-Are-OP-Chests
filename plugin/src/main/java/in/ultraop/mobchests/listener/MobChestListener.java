@@ -238,6 +238,8 @@ public final class MobChestListener implements Listener {
         stopTask(freezeTasks.remove(id));
         setState(mob, OPENING);
         applyFrozenState(mob);
+        Location anchor = readAnchor(mob);
+        if (anchor != null) mob.teleport(anchor);
 
         int openTicks = plugin.settings().openAnimationTicks();
         try {
@@ -395,6 +397,10 @@ public final class MobChestListener implements Listener {
         mob.setCollidable(readBool(mob, originalCollidableKey, true));
         mob.setVelocity(new Vector(0.0, 0.0, 0.0));
         mob.setFallDistance(0.0F);
+        Location anchor = readAnchor(mob);
+        if (anchor != null && anchor.getWorld().equals(mob.getWorld())) {
+            mob.setRotation(anchor.getYaw(), anchor.getPitch());
+        }
         if (mob instanceof Creeper creeper) disarmCreeper(creeper);
         removeStoredOriginals(data);
         removeAnchor(data);
