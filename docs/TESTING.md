@@ -9,9 +9,9 @@
 ## Interaction and vanilla model
 - [ ] Right-click any configured Mob once: it freezes in place.
 - [ ] Freeze tremble is subtle and does not change body size.
-- [ ] Second right-click: pitch interpolates upward toward the configured opening angle.
+- [ ] Second right-click: Mob.lookAt smoothly raises the vanilla head/front toward the configured upward target.
 - [ ] Native mob model remains visible throughout.
-- [ ] Mob's size, width and height remain vanilla.
+- [ ] Mob's size, width and height remain vanilla; its entity pitch is not used as the chest lid.
 - [ ] Close GUI: pitch, AI, awareness, gravity and collision restore.
 - [ ] Creeper cannot ignite/explode while chest is frozen or active; normal fuse behavior returns after close.
 - [ ] One Mob cannot open a second chest after its first session is consumed.
@@ -31,7 +31,7 @@
 - [ ] Restart/chunk unload/disconnect does not duplicate stored items.
 
 ## Known visual limitations to verify
-- [ ] Pitch looks like a head/front lift for Cow, Pig, Sheep, Goat, Creeper, Zombie, Skeleton, Horse, etc.
-- [ ] Models that have no independent head (e.g. Squid) are documented if the whole model pitches rather than only tentacles.
+- [ ] The head/look controller raises the head/front for Cow, Pig, Sheep, Goat, Creeper, Zombie, Skeleton, Horse, etc.
+- [ ] Models with no separate head/look animation (e.g. Squid tentacles) are documented as an API limitation.
 - [ ] No custom resource pack is loaded or required.
 - [ ] All visual checks are tested from multiple client angles and with two players.
