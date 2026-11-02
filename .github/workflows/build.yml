@@ -30,6 +30,9 @@ jobs:
       - name: Build companion packs
         run: python3 resource-pack/tools/package_packs.py
 
+      - name: Validate resource-pack models, textures and split seam
+        run: python3 resource-pack/tools/validate_assets.py
+
       - name: Upload plugin and pack artifacts
         uses: actions/upload-artifact@v4
         with:
