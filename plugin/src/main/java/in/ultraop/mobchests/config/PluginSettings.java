@@ -18,8 +18,11 @@ public final class PluginSettings {
     public boolean debug() { return config.getBoolean("settings.debug", false); }
 
     public boolean interactionsEnabled(EntityType type) {
-        return config.getBoolean("prototype.enabled", true)
-                && config.getStringList("prototype.supported-entities").stream()
+        if (!config.getBoolean("prototype.enabled", true)) return false;
+        if (config.getStringList("prototype.excluded-entities").stream()
+                .anyMatch(name -> name.equalsIgnoreCase(type.name()))) return false;
+        if (config.getBoolean("prototype.support-all-mobs", true)) return true;
+        return config.getStringList("prototype.supported-entities").stream()
                 .anyMatch(name -> name.equalsIgnoreCase(type.name()));
     }
 
