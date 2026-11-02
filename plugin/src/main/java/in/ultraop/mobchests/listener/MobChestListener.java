@@ -104,6 +104,9 @@ public final class MobChestListener implements Listener {
         if (!(event.getRightClicked() instanceof Cow cow)) {
             return; // The first animation proof-of-concept is deliberately Cow-only.
         }
+        if (!cow.isAdult()) {
+            return; // Baby Cow proportions are not covered by the current model prototype.
+        }
 
         String state = getState(cow);
         if (NORMAL.equals(state)) {
