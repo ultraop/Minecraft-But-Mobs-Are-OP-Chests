@@ -1,87 +1,98 @@
 # UltraOP — Mobs Are OP Chests
 
-**Paper 26.3 plugin + companion datapack + resource pack**
+**Paper 26.3 plugin | Java 25 | No resource pack or client mod required**
 
 ![Minecraft](https://img.shields.io/badge/Minecraft-26.3-brightgreen)
 ![Platform](https://img.shields.io/badge/Platform-Paper-blue)
 ![Java](https://img.shields.io/badge/Java-25-orange)
-![Status](https://img.shields.io/badge/Status-Cow%20%2B%20Creeper%20Prototype-yellow)
+![Visuals](https://img.shields.io/badge/Visuals-Vanilla%20entity%20pose-blue)
 
-> **Current visual-interaction scope:** adult Cows and Creepers. The Cow opens at the middle body seam; the Creeper opens its head as a hinged lid. Other mobs remain disabled until their own model/animation is ready.
+## Current approach
 
-## Gameplay implemented in this branch
+The old ItemDisplay/resource-pack animation path is no longer used by the interaction code. This build keeps the real vanilla mob visible at its normal size and uses Paper's entity rotation plus body yaw to create a lid-like head/front lift.
 
-1. First right-click freezes an adult Cow or Creeper in place. It does not sit, become a pet or get tamed.
-2. While frozen, the mob has a very subtle alternating 0.65-degree tremble by default. It is configurable and can be disabled.
-3. Second right-click starts its model-specific animation:
-   - Cow: upper body rotates from the y=8 middle seam; lower body stays as the base.
-   - Creeper: head rotates backward from the neck seam; the lower body and legs stay fixed.
-4. The opening uses chest/firework sounds and a particle burst. One or two real loot stacks (configurable maximum) are launched upward and outward. Those stacks are removed from the GUI first, so they cannot be duplicated.
-5. The remaining items are placed in one inventory session. Closing after taking all, some or no items consumes the chest.
-6. The lid closes, temporary display parts are removed and the original mob AI/physics state is restored. A frozen/open Creeper is disarmed; after the chest is consumed, its normal AI and fuse behaviour resume.
-7. Killing the mob afterwards gives ordinary vanilla drops and XP, not chest loot a second time.
+- No .minecraft/resourcepacks installation is required.
+- No Fabric, Forge, NeoForge, Fabric API or client mod is required.
+- Only the Paper server plugin JAR is required.
+- No mob scale attribute or model replacement is applied.
+- Mob-specific vanilla renderers may interpret pitch differently. A head/front lift is not guaranteed to animate squid tentacles or every complex model part independently.
 
-## Loot in this build
+## Gameplay
 
-- Mob-family common loot profiles, variable slots and stack sizes.
-- Weighted Common-to-Mythic rarity and vanilla enchanted gear.
-- Rare Golden Potato, Golden Porkchop and Golden Bread item models.
-- Rare Emerald Armor pieces (a single piece per custom-equipment roll, not a full set).
-- Rare Liquid Gold Bucket reward metadata with a configurable 7% default chest chance.
-- One custom equipment reward at most per chest by default (10% chance).
-- Custom tome rank metadata from 30–60, separate from vanilla enchantment levels.
+1. First right-click freezes a Mob at its saved position. It gives a very subtle pitch tremble, not a sit/tame animation.
+2. Second right-click smoothly raises the mob's vanilla pitch toward the configured opening angle (90 degrees upward by default), while its body yaw is held in place.
+3. A chest/firework sound and a small particle burst play.
+4. Up to two actual loot stacks pop upward/outward. Those stacks are removed from the GUI before spawning, preventing duplicate collection.
+5. The remaining items are shown in a one-time inventory. Closing after taking all, some or none consumes the chest.
+6. The vanilla pose returns to its original rotation and the mob's saved AI/awareness/gravity/collision settings are restored.
+7. The mob can then behave and be killed normally. If the chest was used, its remaining saved chest contents replace vanilla mob drops and XP. If its chest was never opened, normal vanilla drops remain.
 
-## Important limitations
+## Mob coverage
 
-- Only adult Cows and Creepers currently use the visual chest interaction. Pig, Horse, Zombie, Skeleton, Squid, Sheep, Goat and other mobs remain disabled until their individual model and animation are implemented and tested.
-- Golden foods and Liquid Gold bucket use custom resource-pack item art. Emerald Armor is green-dyed leather armor with custom item metadata.
-- **Liquid Gold flow, bucket placement/scooping, infinite-source behaviour and its 10-second abilities are not implemented yet.** The current bucket is a safe, non-water custom item placeholder. The exact ability list still needs the effect screenshot.
-- Named custom equipment/artifact IDs are loot foundations. Their special powers, custom enchantment effects, Legend points and boss progression are not implemented.
-- The models are stylized display-entity illusions, not replacements for Minecraft's vanilla entity renderer. Real Paper 26.3 client testing must verify scale, hinge orientation, clipping, all-viewer synchronization and cleanup. CI cannot certify visual quality.
+By default, all Bukkit Mob entity types are enabled. Set prototype.support-all-mobs: false and list prototype.supported-entities in plugins/UltraOPMobChests/config.yml to restrict them. Add entity names to prototype.excluded-entities to exclude special cases.
 
-## Single-world / solo use
+The visual method is intentionally generic and resource-pack-free. It uses vanilla entity pitch; it does not independently rotate each model part. For many humanoid/animal mobs this appears as the head/front lifting. Models without a separately pitchable head (for example, squid tentacles or complex boss models) may move differently and need a custom renderer for exact part-by-part animation.
 
-This is a Paper server plugin, not a vanilla single-player mod. It works on one Paper 26.3 world with one player and does not require Multiverse, BungeeCord or Velocity. A normal vanilla single-player world does not load Paper plugins directly; use a local Paper server and join it from your Minecraft client.
+## Loot
 
-## Requirements
+- Variable stack count and quantity.
+- Mob-family drops and broad utility loot such as paper, compass, map, clock, book, arrows, metals and crafting materials.
+- Dimension-aware progression rewards:
+  - Overworld: obsidian, flint and steel, iron and navigation supplies.
+  - Nether: quartz, blaze rods, gold, ancient debris and Netherite scrap/ingot in rare pools.
+  - End: Ender-related materials, shulker shells, chorus and Dragon-related rare items.
+- Rare Golden Potato, Golden Porkchop and Golden Bread names/IDs.
+- Green-dyed Emerald Armor pieces, one equipment piece maximum per chest.
+- Rare Liquid Gold Bucket placeholder metadata.
+- Custom enchantment tome rank metadata from 30–60, separate from vanilla levels.
+
+Without a resource pack, golden foods use vanilla item artwork with their custom names/lore; custom item textures are not supplied by this build.
+
+## Chest loot on mob death
+
+The live GUI contents are serialized onto the mob using Paper's ItemStack byte serialization. Inventory click/drag and close events refresh that saved snapshot. After a chest has been used:
+- vanilla mob item drops are cleared;
+- vanilla death XP is set to zero;
+- only the remaining serialized chest contents are dropped naturally.
+
+Loot stacks ejected at opening are removed from the GUI first, so they are not included in the saved remainder. A chest that was never opened keeps normal vanilla death drops.
+
+## Known limitations
+
+- This is a head/front pitch animation, not an actual model split with a hinged 3D lid. Paper's public entity API does not expose independent rotation controls for every model part. Squid tentacles and other complex parts need a client renderer or model/animation system to animate separately.
+- The resource-pack-free version cannot provide custom item textures. Golden food is identified through names and metadata; Emerald Armor is green-dyed leather armor.
+- Liquid Gold fluid placement, flowing water-like behavior, two-source infinite source and the requested 10-second powers remain unimplemented. The current bucket is a named placeholder that is prevented from placing ordinary water.
+- Named artifact abilities, custom enchantment effects, Legend points and boss progression remain future work.
+- The code has passed CI compilation and static package checks, but live Paper 26.3 client tests are still required for actual head pitch, clipping, every mob renderer, inventory persistence, death drops and multiplayer behavior.
+
+## Requirements and install
 
 | Requirement | Target |
 |---|---|
 | Minecraft Java | 26.3 |
 | Server | Paper 26.3 |
 | Java | 25 |
-| Gradle | 9.5.1 |
 | Client gameplay mod | Not required |
-| Custom visuals | Resource pack required |
+| Resource pack | Not required |
+
+1. Put the JAR in the Paper server's plugins/ folder.
+2. Disable/remove the old UltraOP Mob Chests resource pack from the client; this build does not use it.
+3. Start Paper 26.3 with Java 25.
+4. Run /mobchests info and /mobchests status.
+5. First right-click a mob to freeze it; second right-click opens the pose and loot GUI.
+6. Close the GUI, then kill the mob to verify that only the remaining chest items drop.
 
 ## Build
 
-From the repository root:
-
 ~~~bash
 gradle clean build
-python3 resource-pack/tools/package_packs.py
-python3 resource-pack/tools/validate_assets.py
 ~~~
 
 Windows:
 
 ~~~powershell
 gradle.bat clean build
-py resource-pack/tools/package_packs.py
-py resource-pack/tools/validate_assets.py
 ~~~
-
-## Install and test
-
-1. Put the plugin JAR in the Paper server plugins folder.
-2. Install or host the resource-pack ZIP for the Minecraft client.
-3. Start Paper 26.3 with Java 25.
-4. Run /mobchests info.
-5. Test an adult Cow: first right-click freezes with a faint sway; second right-click opens the middle seam.
-6. Test a Creeper: first right-click freezes and gently trembles without swelling/igniting; second right-click opens its head.
-7. Confirm one or two items burst upward and are collectible; remaining loot appears in the GUI.
-8. Close the GUI after taking all, some or no items. The mob returns to normal behaviour and the chest cannot reopen.
 
 ## Commands
 
@@ -91,18 +102,6 @@ py resource-pack/tools/validate_assets.py
 | /mobchests help | Everyone | Command guide |
 | /mobchests status | Everyone | Runtime and prototype status |
 | /mobchests reload | ultraopmobchests.admin | Reload configuration |
-
-## Documentation
-
-- [Architecture](docs/ARCHITECTURE.md)
-- [Commands](docs/COMMANDS.md)
-- [Gameplay](docs/GAMEPLAY.md)
-- [Loot design](docs/LOOT_DESIGN.md)
-- [Custom items](docs/CUSTOM_ITEMS.md)
-- [Datapack](docs/DATAPACK.md)
-- [Resource pack](docs/RESOURCE_PACK.md)
-- [Roadmap](docs/ROADMAP.md)
-- [Testing](docs/TESTING.md)
 
 ## License
 

@@ -1,63 +1,37 @@
 # Testing Checklist
 
-## Build/package
-- [ ] Java 25 toolchain and Paper 26.3 API resolve.
-- [ ] Root Gradle clean build succeeds.
-- [ ] JAR contains plugin.yml, config.yml and messages.yml.
-- [ ] Datapack/resource-pack ZIPs have pack.mcmeta at archive root.
-- [ ] Resource-pack validator finds all item models and texture references.
-- [ ] Cow and Creeper y=8 split seams validate.
-- [ ] Every pack JSON parses and ZIP testzip passes.
+## Build
+- [ ] Java 25 and Paper 26.3 API resolve.
+- [ ] Gradle clean build succeeds.
+- [ ] JAR contains plugin.yml, config.yml, messages.yml and expected classes.
+- [ ] No resource-pack or client-mod dependency is loaded.
 
-## Single-world server
-- [ ] Start one Paper 26.3 world with Java 25.
-- [ ] Plugin enables without Fabric API, Forge, ProtocolLib or other dependencies.
-- [ ] Resource pack loads on the client.
+## Interaction and vanilla model
+- [ ] Right-click any configured Mob once: it freezes in place.
+- [ ] Freeze tremble is subtle and does not change body size.
+- [ ] Second right-click: pitch interpolates upward toward the configured opening angle.
+- [ ] Native mob model remains visible throughout.
+- [ ] Mob's size, width and height remain vanilla.
+- [ ] Close GUI: pitch, AI, awareness, gravity and collision restore.
+- [ ] Creeper cannot ignite/explode while chest is frozen or active; normal fuse behavior returns after close.
+- [ ] One Mob cannot open a second chest after its first session is consumed.
 
-## Cow
-- [ ] First right-click anchors Cow and begins subtle tremble.
-- [ ] Tremble is low amplitude and configurable.
-- [ ] Second right-click opens at the middle seam.
-- [ ] Lower body stays fixed; upper body hinges.
-- [ ] No original Cow mesh remains visible behind display parts.
-- [ ] One/two loot stacks burst upward; those stacks are absent from the GUI.
-- [ ] Remaining GUI contents vary; close after all/some/none consumes chest.
-- [ ] Cow returns to normal AI and vanilla drops/XP remain unchanged.
+## Loot and persistence
+- [ ] Loot count and quantities vary.
+- [ ] Common utility items include paper, compass, maps, clocks, books and crafting supplies.
+- [ ] Overworld loot can include obsidian and flint and steel.
+- [ ] Nether loot can include blaze rods and rare Netherite progression items.
+- [ ] Netherite scrap/ancient debris/ingot do not appear in Overworld or End pools.
+- [ ] End pools include Ender and Shulker progression supplies.
+- [ ] Loot burst stacks are removed from the GUI before dropping in the world.
+- [ ] Inventory click/shift-click/drag/close saves remaining GUI contents.
+- [ ] Kill a chest-used mob: only remaining chest contents drop, with no vanilla mob items and no vanilla death XP.
+- [ ] Kill a mob whose chest was never opened: normal vanilla drops/XP remain.
+- [ ] Kill after taking all items: no chest items drop.
+- [ ] Restart/chunk unload/disconnect does not duplicate stored items.
 
-## Creeper
-- [ ] First right-click freezes it and keeps fuse at zero / not ignited.
-- [ ] Tremble is subtle and not visually distracting.
-- [ ] Second right-click opens the head as a lid while the lower body stays fixed.
-- [ ] Firework/chest sound and loot burst play once.
-- [ ] Creeper cannot explode while frozen, opening, GUI-open or closing.
-- [ ] After GUI close and animation cleanup, Creeper AI and normal fuse behaviour resume.
-- [ ] After chest is used, it cannot be reopened.
-- [ ] Later death still produces normal vanilla drops and XP.
-
-## Inventory/drop safety
-- [ ] Burst items are removed from the GUI before being spawned in the world.
-- [ ] Burst items are real collectible Item entities, not duplicate display-only copies.
-- [ ] One mob cannot open two sessions at once.
-- [ ] Disconnect, death, chunk unload/reload and plugin restart clean temporary displays.
-- [ ] A failed animation returns the mob to its frozen state.
-
-## Loot
-- [ ] Golden foods use custom models and IDs.
-- [ ] Emerald Armor roll yields only one armor piece.
-- [ ] Liquid Gold Bucket has the configured 5–10% target odds.
-- [ ] Liquid Gold cannot place ordinary water while custom fluid support is pending.
-- [ ] Custom equipment remains at most one piece per chest.
-- [ ] Common items remain more frequent than Mythic items.
-
-## Visual QA
-- [ ] Cow seam/hinge is aligned from all sides.
-- [ ] Creeper head hinge stays at the neck seam.
-- [ ] No clipping while either lid rotates.
-- [ ] Burst trajectory and pickup delay feel readable, not overwhelming.
-- [ ] No floating ItemDisplays remain after close/failure/chunk unload.
-
-## Not implemented in this build
-- Additional mob models (Pig, Horse, Zombie, Skeleton, Squid, Sheep, Goat, etc.).
-- Liquid Gold fluid placement, flow and infinite sources.
-- Liquid Gold's 10-second potion/ability effects.
-- Custom gear abilities, custom enchantment effects, Legend and boss progression.
+## Known visual limitations to verify
+- [ ] Pitch looks like a head/front lift for Cow, Pig, Sheep, Goat, Creeper, Zombie, Skeleton, Horse, etc.
+- [ ] Models that have no independent head (e.g. Squid) are documented if the whole model pitches rather than only tentacles.
+- [ ] No custom resource pack is loaded or required.
+- [ ] All visual checks are tested from multiple client angles and with two players.
