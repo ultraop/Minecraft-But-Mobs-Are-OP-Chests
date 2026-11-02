@@ -12,7 +12,7 @@
 - [ ] Second right-click: Mob.lookAt smoothly raises the vanilla head/front toward the configured upward target.
 - [ ] Native mob model remains visible throughout.
 - [ ] Mob's size, width and height remain vanilla; its entity pitch is not used as the chest lid.
-- [ ] Close GUI: pitch, AI, awareness, gravity and collision restore.
+- [ ] Close GUI: head/look pose, AI, awareness, gravity and collision restore.
 - [ ] Creeper cannot ignite/explode while chest is frozen or active; normal fuse behavior returns after close.
 - [ ] One Mob cannot open a second chest after its first session is consumed.
 
