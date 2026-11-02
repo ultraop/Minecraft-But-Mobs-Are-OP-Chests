@@ -411,7 +411,7 @@ public final class MobChestListener implements Listener {
             }
             UUID id = cow.getUniqueId();
             stopTask(freezeTasks.remove(id));
-            if (OPENING.equals(getState(cow)) || LOOT_OPEN.equals(getState(cow))) {
+            if (OPENING.equals(getState(cow)) || LOOT_OPEN.equals(getState(cow)) || CLOSING.equals(getState(cow))) {
                 consumeAndRestore(cow, false);
             }
         }
