@@ -36,7 +36,7 @@ public final class UltraOPMobChestsPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(mobChestListener, this);
         mobChestListener.recoverLoadedEntities();
 
-        getLogger().info("UltraOP Mob Chests enabled. Cow interaction/animation prototype is active; other mobs are not enabled yet.");
+        getLogger().info("UltraOP Mob Chests enabled. Cow interaction/animation prototype and mob-family loot generator are active; other mob interactions remain disabled.");
     }
 
     @Override
