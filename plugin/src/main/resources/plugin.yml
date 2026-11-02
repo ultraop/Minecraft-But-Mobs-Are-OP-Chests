@@ -8,7 +8,7 @@ website: https://github.com/ultraop/Minecraft-But-Mobs-Are-OP-Chests
 load: POSTWORLD
 commands:
   mobchests:
-    description: Main command for UltraOP Mob Chests.
+    description: Main command for Mob Chests.
     usage: "/mobchests <info|help|status|reload>"
     aliases: [mobchest]
     permission: ultraopmobchests.use
