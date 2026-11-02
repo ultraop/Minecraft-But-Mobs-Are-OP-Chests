@@ -1,9 +1,19 @@
-# Resource Pack
+# Resource Pack Status
 
-Target: Minecraft Java 26.3 (resource pack format 97.1).
+The resource-pack animation implementation has been retired from the current build.
 
-Planned: split-body models (upper lid/lower base), textures, custom equipment models, GUI/rarity icons, chest sounds, particles and fonts.
+## Current build
 
-First prove one cow model opens at the middle seam without clipping, with a hinged upper part and fixed lower part. Synchronize the animation for every viewer. Extend to all vanilla mobs only after validation.
+- The Paper plugin uses the original vanilla Mob entity.
+- It does not create custom ItemDisplay model halves.
+- It does not set custom item model IDs.
+- It does not require a client resource pack.
+- Disable/remove any older UltraOP Mob Chests resource pack from the client.
 
-Visual-only: the plugin owns all gameplay state.
+The mob's vanilla entity pitch is animated while body yaw is held. This keeps native dimensions and texture, but is only a head/front-pose approximation. It cannot independently animate every model bone or squid tentacle.
+
+## Custom item appearance
+
+The current build uses vanilla item textures, custom display names and PersistentDataContainer IDs. Golden foods will therefore look like their vanilla base items without a resource pack. Emerald Armor uses green-dyed leather armor.
+
+A future custom-texture version would need a separately versioned and tested resource pack again; it is not part of this build.
