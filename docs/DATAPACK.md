@@ -1,7 +1,7 @@
-# Datapack
+# Datapack Status
 
-Target: Minecraft Java 26.3, data pack format 121.0.
+The current Paper 26.3 build does not require a datapack. Mob interaction, loot generation, inventory persistence and death-drop replacement are handled by the Paper plugin JAR.
 
-The companion datapack will hold mob loot tables, tags, custom recipes, discovery advancements and data-driven defaults. Namespace: `ultraop_mobchests`.
+The datapack directory is only a future scaffold and contains no required gameplay functions or loot tables. Do not upload or enable its old ZIP for this build. You can remove the old UltraOP Mob Chests datapack from the world's datapacks folder.
 
-The plugin remains authoritative for entity state, one-time opening, GUI sessions, progression and special abilities. This is a companion pack, not a standalone replacement. Final tables will be added during the loot implementation phase.
+Future datapack work may move configurable loot tables or progression data out of the Java plugin, but it is not part of the current release.
