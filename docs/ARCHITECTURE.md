@@ -14,7 +14,7 @@ This is an approximation, not a true chest hinge or independent model-part anima
 
 NORMAL -> FROZEN -> OPENING -> LOOT_OPEN -> CLOSING -> LOOTED
 
-First click freezes and applies a mild tremble. Second click interpolates pitch upward and opens one GUI session. Closing the GUI returns the original pose and AI/physics. After use, the mob cannot open another chest.
+First click freezes and applies a mild tremble. Second click smoothly raises the vanilla head/look controller and opens one GUI session. Closing the GUI returns the original pose and AI/physics. After use, the mob cannot open another chest.
 
 ## Chest inventory persistence and death drops
 
@@ -29,6 +29,6 @@ Loot selection receives the mob's current world environment. Overworld pools fav
 ## Limitations
 
 - No custom resource pack is required, so there are no custom mob or item textures in this mode.
-- Squid tentacles and other independent model parts cannot be animated precisely by the generic pitch method.
+- Squid tentacles and other independent model parts cannot be animated precisely by the generic head-look method.
 - Liquid Gold fluid flow/infinite source and its ten-second powers are not implemented.
 - Real Paper 26.3 in-game and multiplayer QA remains a release gate.
