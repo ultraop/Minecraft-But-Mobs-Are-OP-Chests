@@ -362,8 +362,8 @@ public final class MobChestListener implements Listener {
         return (byte) (value ? 1 : 0);
     }
 
-    private String getState(Cow cow) {
-        return cow.getPersistentDataContainer().getOrDefault(
+    private String getState(Entity entity) {
+        return entity.getPersistentDataContainer().getOrDefault(
                 stateKey, PersistentDataType.STRING, NORMAL);
     }
 
