@@ -74,13 +74,15 @@ Loot stacks ejected at opening are removed from the GUI first, so they are not i
 | Java | 25 |
 | Client gameplay mod | Not required |
 | Resource pack | Not required |
+| Datapack | Not required |
 
 1. Put the JAR in the Paper server's plugins/ folder.
 2. Disable/remove the old UltraOP Mob Chests resource pack from the client; this build does not use it.
-3. Start Paper 26.3 with Java 25.
-4. Run /mobchests info and /mobchests status.
-5. First right-click a mob to freeze it; second right-click opens the pose and loot GUI.
-6. Close the GUI, then kill the mob to verify that only the remaining chest items drop.
+3. Remove the old UltraOP Mob Chests datapack ZIP from the world's datapacks folder; this build does not use it.
+4. Start Paper 26.3 with Java 25.
+5. Run /mobchests info and /mobchests status.
+6. First right-click a mob to freeze it; second right-click opens the pose and loot GUI.
+7. Close the GUI, then kill the mob to verify that only the remaining chest items drop.
 
 ## Build
 
