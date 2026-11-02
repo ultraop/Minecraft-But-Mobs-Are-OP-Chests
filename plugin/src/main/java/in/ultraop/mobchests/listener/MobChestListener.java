@@ -165,12 +165,15 @@ public final class MobChestListener implements Listener {
     }
 
     private void applyFrozenState(Mob mob) {
-        mob.setAI(false);
+        // Keep the entity's look controller available for Mob.lookAt(),
+        // while awareness=false prevents ordinary autonomous behaviour.
+        mob.setAI(true);
         mob.setAware(false);
         mob.setGravity(false);
         mob.setVelocity(new Vector(0.0, 0.0, 0.0));
         mob.setFallDistance(0.0F);
         mob.setTarget(null);
+        mob.getPathfinder().stopPathfinding();
         if (mob instanceof Creeper creeper) {
             disarmCreeper(creeper);
         }
@@ -205,14 +208,12 @@ public final class MobChestListener implements Listener {
                     plugin.getConfig().getInt("freeze.tremble-interval-ticks", 8));
             float amplitude = (float) Math.max(0.0, Math.min(2.0,
                     plugin.getConfig().getDouble("freeze.tremble-pitch-degrees", 0.8)));
-            float pitch = anchor.getPitch();
-            if (plugin.getConfig().getBoolean("freeze.subtle-tremble-enabled", true)
-                    && ticks[0] % interval < Math.max(1, interval / 2)) {
-                pitch += amplitude;
-            } else if (plugin.getConfig().getBoolean("freeze.subtle-tremble-enabled", true)) {
-                pitch -= amplitude;
+            float tremble = 0.0F;
+            if (plugin.getConfig().getBoolean("freeze.subtle-tremble-enabled", true)) {
+                tremble = ticks[0] % interval < Math.max(1, interval / 2)
+                        ? amplitude : -amplitude;
             }
-            applyHeadPose(mob, anchor, pitch);
+            applyHeadLookPose(mob, anchor, tremble);
             ticks[0]++;
         }, 1L, 1L);
         freezeTasks.put(id, task);
@@ -240,12 +241,28 @@ public final class MobChestListener implements Listener {
     }
 
     /**
-     * Keep the actual Mob model and dimensions. Body yaw is held in place;
-     * the vanilla entity pitch is driven toward -90 degrees for the lid pose.
+     * Use Paper's Mob look controller rather than rotating the whole entity.
+     * The real vanilla model and bounding box remain untouched. A target
+     * almost directly above the eye line raises the head/front to its maximum
+     * vanilla head pitch. This is a head-look pose, not a custom model hinge.
      */
-    private void applyHeadPose(Mob mob, Location anchor, float pitch) {
-        mob.setRotation(anchor.getYaw(), Math.max(-90.0F, Math.min(90.0F, pitch)));
+    private void applyHeadLookPose(Mob mob, Location anchor, float lookUpDegrees) {
+        float angle = Math.max(-2.0F, Math.min(88.0F, lookUpDegrees));
+        double yawRadians = Math.toRadians(anchor.getYaw());
+        double distance = 4.0;
+        double radians = Math.toRadians(angle);
+        double horizontal = Math.max(0.025, distance * Math.cos(radians));
+        double vertical = distance * Math.sin(radians);
+        double dx = -Math.sin(yawRadians) * horizontal;
+        double dz = Math.cos(yawRadians) * horizontal;
+
+        Location target = new Location(anchor.getWorld(),
+                anchor.getX() + dx,
+                anchor.getY() + mob.getEyeHeight() + vertical,
+                anchor.getZ() + dz);
+
         mob.setBodyYaw(anchor.getYaw());
+        mob.lookAt(target, 360.0F, 90.0F);
     }
 
     private void beginOpening(Mob mob, Player player) {
@@ -289,8 +306,7 @@ public final class MobChestListener implements Listener {
         mob.getWorld().playSound(effectLocation, Sound.ENTITY_FIREWORK_ROCKET_LAUNCH, 0.55F, 1.2F);
         mob.getWorld().spawnParticle(Particle.END_ROD, effectLocation, 8, 0.12, 0.12, 0.12, 0.025);
 
-        float currentPitch = mob.getPitch();
-        animatePitch(mob, currentPitch, plugin.settings().openingHeadPitchDegrees(),
+        animateHeadLook(mob, 0.0F, 88.0F,
                 plugin.settings().openAnimationTicks(), OPENING, () -> {
                     if (!mob.isValid() || mob.isDead()) return;
                     if (!player.isOnline()) {
@@ -318,8 +334,8 @@ public final class MobChestListener implements Listener {
                 });
     }
 
-    private void animatePitch(Mob mob, float startPitch, float endPitch,
-                              int durationTicks, String expectedState, Runnable completed) {
+    private void animateHeadLook(Mob mob, float startAngle, float endAngle,
+                                 int durationTicks, String expectedState, Runnable completed) {
         UUID id = mob.getUniqueId();
         stopTask(poseTasks.remove(id));
         int duration = Math.max(1, durationTicks);
@@ -341,8 +357,8 @@ public final class MobChestListener implements Listener {
             elapsed[0]++;
             float progress = Math.min(1.0F, elapsed[0] / (float) duration);
             float eased = progress * progress * (3.0F - 2.0F * progress);
-            float pitch = startPitch + (endPitch - startPitch) * eased;
-            applyHeadPose(mob, anchor, pitch);
+            float lookUp = startAngle + (endAngle - startAngle) * eased;
+            applyHeadLookPose(mob, anchor, lookUp);
 
             if (elapsed[0] >= duration) {
                 stopTask(poseTasks.remove(id));
@@ -462,10 +478,9 @@ public final class MobChestListener implements Listener {
         stopTask(poseTasks.remove(mobId));
 
         Location anchor = readAnchor(mob);
-        float originalPitch = anchor == null ? 0.0F : anchor.getPitch();
         if (animateClose && mob.isValid() && anchor != null) {
             mob.getWorld().playSound(mob.getLocation(), Sound.BLOCK_CHEST_CLOSE, 0.85F, 1.0F);
-            animatePitch(mob, mob.getPitch(), originalPitch,
+            animateHeadLook(mob, 88.0F, 0.0F,
                     plugin.settings().closeAnimationTicks(), CLOSING, () -> {
                         activeInventories.remove(mobId);
                         activeMobs.remove(mobId);
@@ -506,7 +521,7 @@ public final class MobChestListener implements Listener {
         Location anchor = readAnchor(mob);
         if (anchor != null && anchor.getWorld().equals(mob.getWorld())) {
             mob.setRotation(anchor.getYaw(), anchor.getPitch());
-            mob.setBodyYaw(anchor.getYaw());
+            applyHeadLookPose(mob, anchor, 0.0F);
         }
         if (mob instanceof Creeper creeper) disarmCreeper(creeper);
 
