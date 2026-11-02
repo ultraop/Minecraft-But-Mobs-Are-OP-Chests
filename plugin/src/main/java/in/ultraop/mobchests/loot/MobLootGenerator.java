@@ -280,7 +280,7 @@ public final class MobLootGenerator {
         meta.lore(List.of(
                 itemLore("Stored Enchantment: " + title(selectedKey), NamedTextColor.GOLD),
                 itemLore("Enchantment Level: " + rank, NamedTextColor.AQUA),
-                itemLore("Apply to compatible gear in an anvil.", NamedTextColor.GRAY)));
+                itemLore("Right-click with compatible gear in your off-hand to apply.", NamedTextColor.GRAY)));
         meta.getPersistentDataContainer().set(new NamespacedKey(plugin, "custom_enchantment_rank"),
                 PersistentDataType.INTEGER, rank);
         meta.getPersistentDataContainer().set(new NamespacedKey(plugin, "custom_enchantment_id"),
