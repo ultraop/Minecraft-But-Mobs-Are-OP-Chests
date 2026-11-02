@@ -1,7 +1,7 @@
 help:
   lines:
     - "&6&l━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    - "&6&lULTRAOP MOB CHESTS — HELP"
+    - "&6&lMOB CHESTS — HELP"
     - "&e/mobchests info &7- Build, platform and feature status."
     - "&e/mobchests help &7- This command guide."
     - "&e/mobchests status &7- Runtime status."
