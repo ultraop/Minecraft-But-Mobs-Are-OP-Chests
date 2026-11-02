@@ -1,5 +1,6 @@
 # UltraOP Mob Chests — Minecraft Java 26.3 | Paper | Java 25
-# The current visual interaction prototype supports adult Cows only.
+# Cow body-split and Creeper head-lid models are currently enabled.
+# Other mobs remain disabled until their individual models pass visual QA.
 
 settings:
   language: en
@@ -7,7 +8,9 @@ settings:
 
 prototype:
   enabled: true
-  entity-type: COW
+  supported-entities:
+    - COW
+    - CREEPER
   adults-only: true
   open-animation-ticks: 10
   close-animation-ticks: 8
