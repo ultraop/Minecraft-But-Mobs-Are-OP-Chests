@@ -1,4 +1,47 @@
-# Initial plugin settings for Paper 26.3
+# UltraOP Mob Chests — initial configuration
+# Target: Paper 26.3 | Java 25
+
 settings:
-  debug: false
   language: en
+  debug: false
+  check-updates: false
+
+resource-pack:
+  required: false
+
+interaction:
+  freeze-on-first-right-click: true
+  open-on-second-right-click: true
+  one-opening-session-per-mob: true
+  restore-normal-ai-after-looting: true
+  preserve-vanilla-drops-and-xp: true
+
+loot:
+  custom-equipment-chance: 0.10
+  minimum-slots: 0
+  maximum-slots: 15
+  prevent-full-armor-set-per-chest: true
+  persist-result-per-entity: true
+
+rarity:
+  common: 70.0
+  uncommon: 20.0
+  rare: 7.0
+  epic: 2.0
+  legendary: 0.8
+  mythic: 0.2
+
+progression:
+  enabled: true
+  unique-discoveries-only: true
+  categories:
+    overworld: true
+    ocean: true
+    nether: true
+    end: true
+
+bosses:
+  wither: true
+  elder-guardian: true
+  warden: true
+  ender-dragon: true
