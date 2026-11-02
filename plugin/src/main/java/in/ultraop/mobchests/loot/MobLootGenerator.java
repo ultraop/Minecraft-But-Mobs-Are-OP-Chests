@@ -258,7 +258,7 @@ public final class MobLootGenerator {
 
     private static ItemStack liquidGoldBucket(UltraOPMobChestsPlugin plugin) {
         ItemStack item = taggedArtifact(plugin, "liquid_gold_bucket",
-                "Liquid Gold Bucket", Material.WATER_BUCKET);
+                "Liquid Gold Bucket", Material.BUCKET);
         ItemMeta meta = item.getItemMeta();
         meta.setItemModel(new NamespacedKey("ultraop_mobchests", "liquid_gold_bucket"));
         meta.getPersistentDataContainer().set(
