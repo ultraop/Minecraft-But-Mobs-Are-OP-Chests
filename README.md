@@ -103,7 +103,7 @@ gradle.bat clean build
 | /mobchests info | Everyone | Version and implemented-scope information |
 | /mobchests help | Everyone | Command guide |
 | /mobchests status | Everyone | Runtime and prototype status |
-| /mobchests reload | ultraopmobchests.admin | Reload configuration |
+| /mobchests reload | mobchests.admin | Reload configuration |
 
 ## License
 
