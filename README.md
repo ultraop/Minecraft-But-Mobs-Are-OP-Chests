@@ -9,7 +9,7 @@
 
 ## Current approach
 
-The old ItemDisplay/resource-pack animation path is no longer used by the interaction code. This build keeps the real vanilla mob visible at its normal size and uses Paper's entity rotation plus body yaw to create a lid-like head/front lift.
+The old ItemDisplay/resource-pack animation path is no longer used by the interaction code. This build keeps the real vanilla mob visible at its normal size and uses Paper's Mob.lookAt head controller to raise the vanilla head/front while holding body yaw steady. It does not rotate or scale a replacement model.
 
 - No .minecraft/resourcepacks installation is required.
 - No Fabric, Forge, NeoForge, Fabric API or client mod is required.
@@ -20,7 +20,7 @@ The old ItemDisplay/resource-pack animation path is no longer used by the intera
 ## Gameplay
 
 1. First right-click freezes a Mob at its saved position. It gives a very subtle pitch tremble, not a sit/tame animation.
-2. Second right-click smoothly raises the mob's vanilla pitch toward the configured opening angle (90 degrees upward by default), while its body yaw is held in place.
+2. Second right-click smoothly instructs the Mob head to look almost straight upward (88 degrees by default), while its body yaw is held in place.
 3. A chest/firework sound and a small particle burst play.
 4. Up to two actual loot stacks pop upward/outward. Those stacks are removed from the GUI before spawning, preventing duplicate collection.
 5. The remaining items are shown in a one-time inventory. Closing after taking all, some or none consumes the chest.
@@ -31,7 +31,7 @@ The old ItemDisplay/resource-pack animation path is no longer used by the intera
 
 By default, all Bukkit Mob entity types are enabled. Set prototype.support-all-mobs: false and list prototype.supported-entities in plugins/UltraOPMobChests/config.yml to restrict them. Add entity names to prototype.excluded-entities to exclude special cases.
 
-The visual method is intentionally generic and resource-pack-free. It uses vanilla entity pitch; it does not independently rotate each model part. For many humanoid/animal mobs this appears as the head/front lifting. Models without a separately pitchable head (for example, squid tentacles or complex boss models) may move differently and need a custom renderer for exact part-by-part animation.
+The visual method is intentionally generic and resource-pack-free. It uses Paper's Mob.lookAt head-rotation control; it does not replace the Mob model or change its dimensions. Most mobs with a vanilla head-look controller can raise their head/front. Squid tentacles and other independent model parts cannot be animated by this API and need a custom renderer for exact part-by-part animation.
 
 ## Loot
 
