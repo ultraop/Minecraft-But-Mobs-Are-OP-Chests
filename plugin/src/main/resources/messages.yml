@@ -6,5 +6,5 @@ help:
     - "&e/mobchests help &7- This command guide."
     - "&e/mobchests status &7- Runtime status."
     - "&e/mobchests reload &7- Reload configuration (admin)."
-    - "&8Loot, points, Legend and boss commands are planned."
+    - "&8Other mob models, custom abilities, Legend and boss features are still in development."
     - "&6&l━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
