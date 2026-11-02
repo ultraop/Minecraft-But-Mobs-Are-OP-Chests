@@ -1,5 +1,5 @@
-# UltraOP Mob Chests — Paper 26.3 | Java 25
-# This build exposes the adult-Cow animation prototype only.
+# UltraOP Mob Chests — Minecraft Java 26.3 | Paper | Java 25
+# The current visual interaction prototype supports adult Cows only.
 
 settings:
   language: en
@@ -20,18 +20,9 @@ interaction:
   restore-original-mob-state-on-close: true
   preserve-vanilla-drops-and-xp-after-looting: true
 
-loot-prototype:
+loot:
   minimum-item-stacks: 4
   maximum-item-stacks: 8
-  variable-stack-amounts: true
-
-resource-pack:
-  required-for-cow-model: true
-  minecraft-version: "26.3"
-  resource-pack-format: "97.1"
-
-# The following systems are future modules; their values are design defaults only.
-loot:
   custom-equipment-chance: 0.10
   prevent-full-armor-set-per-chest: true
   persist-result-per-entity: true
@@ -43,3 +34,11 @@ rarity:
   epic: 2.0
   legendary: 0.8
   mythic: 0.2
+
+resource-pack:
+  required-for-cow-model: true
+  minecraft-version: "26.3"
+  resource-pack-format: "97.1"
+
+# Mob-family loot profiles exist in the plugin. Enable further interactions
+# only after their split-body model has passed real-client visual QA.
