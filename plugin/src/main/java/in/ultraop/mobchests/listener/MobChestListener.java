@@ -102,7 +102,8 @@ public final class MobChestListener implements Listener {
     }
 
     private boolean isSupported(Mob mob) {
-        return mob instanceof Creeper || (mob instanceof Cow cow && cow.isAdult());
+        return plugin.settings().interactionsEnabled(mob.getType())
+                && (mob instanceof Creeper || (mob instanceof Cow cow && cow.isAdult()));
     }
 
     private boolean isLocked(Mob mob) {
@@ -112,7 +113,7 @@ public final class MobChestListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onMobRightClick(PlayerInteractEntityEvent event) {
-        if (!plugin.settings().cowPrototypeEnabled()
+        if (!plugin.settings().interactionsEnabled(mob.getType())
                 || event.getHand() != org.bukkit.inventory.EquipmentSlot.HAND
                 || !(event.getRightClicked() instanceof Mob mob)
                 || !isSupported(mob)) {
