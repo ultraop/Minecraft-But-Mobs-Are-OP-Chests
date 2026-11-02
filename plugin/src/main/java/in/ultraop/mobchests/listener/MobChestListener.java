@@ -189,11 +189,17 @@ public final class MobChestListener implements Listener {
             if (!mob.getWorld().equals(anchor.getWorld())
                     || mob.getLocation().distanceSquared(anchor) > 0.0001) {
                 mob.teleport(anchor);
-            } else if (ticks[0] % 6 == 0) {
-                // Very light alternating sway: visible as a frightened tremble,
-                // but subtle enough not to become distracting.
-                float sway = ((ticks[0] / 6) % 2 == 0) ? 0.65F : -0.65F;
-                mob.setRotation(anchor.getYaw() + sway, anchor.getPitch());
+            } else {
+                int interval = Math.max(2, plugin.getConfig().getInt("freeze.tremble-interval-ticks", 6));
+                if (plugin.getConfig().getBoolean("freeze.subtle-tremble-enabled", true)
+                        && ticks[0] % interval == 0) {
+                    // Very light alternating sway: visible as a frightened tremble,
+                    // but subtle enough not to become distracting.
+                    float angle = (float) Math.max(0.0, Math.min(2.0,
+                            plugin.getConfig().getDouble("freeze.tremble-angle-degrees", 0.65)));
+                    float sway = ((ticks[0] / interval) % 2 == 0) ? angle : -angle;
+                    mob.setRotation(anchor.getYaw() + sway, anchor.getPitch());
+                }
             }
             ticks[0]++;
         }, 1L, 1L);
@@ -280,7 +286,8 @@ public final class MobChestListener implements Listener {
         if (occupied.isEmpty()) return;
 
         Collections.shuffle(occupied, ThreadLocalRandom.current());
-        int burstStacks = Math.max(1, Math.min(2, occupied.size() / 4));
+        int configuredBurst = Math.max(0, Math.min(4, plugin.getConfig().getInt("loot.burst-max-stacks", 2)));
+        int burstStacks = Math.min(configuredBurst, Math.max(1, occupied.size() / 4));
         Location origin = mob.getLocation().clone().add(0.0, Math.max(0.9, mob.getHeight() * 0.7), 0.0);
         ThreadLocalRandom random = ThreadLocalRandom.current();
 
