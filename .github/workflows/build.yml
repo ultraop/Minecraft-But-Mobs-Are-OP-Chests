@@ -27,17 +27,14 @@ jobs:
       - name: Build Paper plugin
         run: gradle clean build
 
-      - name: Build companion packs
-        run: python3 resource-pack/tools/package_packs.py
+      - name: Verify plugin output
+        run: |
+          test -f plugin/build/libs/UltraOP-MobChests-0.1.0-SNAPSHOT.jar
+          jar tf plugin/build/libs/UltraOP-MobChests-0.1.0-SNAPSHOT.jar | grep -q "in/ultraop/mobchests/listener/MobChestListener.class"
 
-      - name: Validate resource-pack models, textures and split seam
-        run: python3 resource-pack/tools/validate_assets.py
-
-      - name: Upload plugin and pack artifacts
+      - name: Upload Paper plugin JAR
         uses: actions/upload-artifact@v4
         with:
-          name: UltraOP-MobChests-${{ github.sha }}
-          path: |
-            plugin/build/libs/*.jar
-            build/distributions/*.zip
+          name: UltraOP-MobChests-No-ResourcePack-${{ github.sha }}
+          path: plugin/build/libs/*.jar
           if-no-files-found: error
