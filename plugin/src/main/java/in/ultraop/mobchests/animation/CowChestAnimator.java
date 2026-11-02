@@ -18,6 +18,8 @@ import java.util.UUID;
 public final class CowChestAnimator {
     private static final float OPEN_ANGLE = (float) Math.toRadians(-72.0);
     private static final float MODEL_SCALE = 1.0F;
+    // Must match assets/ultraop_mobchests/items/*.json in the resource pack.
+    private static final String RESOURCE_NAMESPACE = "ultraop_mobchests";
     private final UltraOPMobChestsPlugin plugin;
     private final NamespacedKey ownerKey;
 
@@ -44,7 +46,7 @@ public final class CowChestAnimator {
     private ItemDisplay spawnPart(Location location, String model, UUID owner, float yaw) {
         ItemStack stack = new ItemStack(Material.PAPER);
         ItemMeta meta = stack.getItemMeta();
-        meta.setItemModel(new NamespacedKey(plugin, model));
+        meta.setItemModel(new NamespacedKey(RESOURCE_NAMESPACE, model));
         stack.setItemMeta(meta);
 
         return location.getWorld().spawn(location, ItemDisplay.class, display -> {
