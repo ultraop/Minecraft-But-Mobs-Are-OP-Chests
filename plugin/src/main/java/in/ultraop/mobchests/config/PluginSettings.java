@@ -2,6 +2,7 @@ package in.ultraop.mobchests.config;
 
 import in.ultraop.mobchests.UltraOPMobChestsPlugin;
 import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.entity.EntityType;
 
 public final class PluginSettings {
     private final UltraOPMobChestsPlugin plugin;
@@ -16,9 +17,10 @@ public final class PluginSettings {
 
     public boolean debug() { return config.getBoolean("settings.debug", false); }
 
-    public boolean cowPrototypeEnabled() {
+    public boolean interactionsEnabled(EntityType type) {
         return config.getBoolean("prototype.enabled", true)
-                && "COW".equalsIgnoreCase(config.getString("prototype.entity-type", "COW"));
+                && config.getStringList("prototype.supported-entities").stream()
+                .anyMatch(name -> name.equalsIgnoreCase(type.name()));
     }
 
     public int openAnimationTicks() {
