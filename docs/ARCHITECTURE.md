@@ -6,9 +6,9 @@ Minecraft Java 26.3, Paper server, Java 25. This is a server-side Paper plugin. 
 
 ## Vanilla pose strategy
 
-The former ItemDisplay/resource-pack animation path is no longer called. The original Mob remains visible and at its native size. The plugin freezes it, uses Entity.setRotation(yaw, pitch) to interpolate the vanilla pitch toward -90 degrees, and restores the original pitch afterwards. LivingEntity.setBodyYaw is used to hold body orientation while the pitch pose changes.
+The former ItemDisplay/resource-pack animation path is no longer called. The original Mob remains visible and at its native size. The plugin freezes it, uses Mob.lookAt(location, headRotationSpeed, maxHeadPitch) to smoothly direct the vanilla head/look controller toward a point almost directly above the Mob. LivingEntity.setBodyYaw holds the body orientation. The entity's own pitch and dimensions are not changed by the chest animation.
 
-This is an approximation, not a true chest hinge or independent model-part animation. Many vanilla Mob renderers map entity pitch to the head/front pose, but complex entities may interpret it differently. Paper's public Bukkit API does not expose independent tentacle, abdomen, or arbitrary model-bone controls.
+This is an approximation, not a true chest hinge or independent model-part animation. It uses the vanilla look controller where available. Paper's public Bukkit API does not expose independent tentacle, abdomen, or arbitrary model-bone controls.
 
 ## State machine
 
