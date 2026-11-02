@@ -1,0 +1,29 @@
+{
+  "gui_light": "front",
+  "textures": {
+    "hide": "ultraop_mobchests:entity/creeper_hide",
+    "face": "ultraop_mobchests:entity/creeper_face",
+    "inside": "ultraop_mobchests:entity/cow_inside",
+    "particle": "ultraop_mobchests:entity/creeper_hide"
+  },
+  "display": {
+    "fixed": {
+      "rotation": [0, 0, 0],
+      "translation": [0, 0, 0],
+      "scale": [1, 1, 1]
+    }
+  },
+  "elements": [
+    {
+      "from": [4, 8, 4], "to": [12, 16, 12],
+      "faces": {
+        "north": {"texture": "#face", "uv": [0, 0, 16, 16]},
+        "south": {"texture": "#hide", "uv": [0, 0, 16, 16]},
+        "east": {"texture": "#hide", "uv": [0, 0, 16, 16]},
+        "west": {"texture": "#hide", "uv": [0, 0, 16, 16]},
+        "up": {"texture": "#hide", "uv": [0, 0, 16, 16]},
+        "down": {"texture": "#inside", "uv": [0, 0, 16, 16]}
+      }
+    }
+  ]
+}

@@ -18,8 +18,8 @@ import java.util.UUID;
 public final class CowChestAnimator {
     private static final float OPEN_ANGLE = (float) Math.toRadians(-72.0);
     private static final float MODEL_SCALE = 1.0F;
-    // Must match assets/ultraop_mobchests/items/*.json in the resource pack.
     private static final String RESOURCE_NAMESPACE = "ultraop_mobchests";
+
     private final UltraOPMobChestsPlugin plugin;
     private final NamespacedKey ownerKey;
 
@@ -68,34 +68,45 @@ public final class CowChestAnimator {
         });
     }
 
-    public void open(AnimationPair pair, int durationTicks) {
-        if (pair == null || !pair.isValid()) return;
-        pair.upper().setInterpolationDelay(0);
-        pair.upper().setInterpolationDuration(durationTicks);
-        pair.upper().setTransformation(transform(OPEN_ANGLE));
-    }
-
-    public void close(AnimationPair pair, int durationTicks) {
-        if (pair == null || !pair.isValid()) return;
-        pair.upper().setInterpolationDelay(0);
-        pair.upper().setInterpolationDuration(durationTicks);
-        pair.upper().setTransformation(transform(0.0F));
-    }
-
-    public void remove(AnimationPair pair) { if (pair != null) pair.remove(); }
-
     private static org.bukkit.util.Transformation transform(float angle) {
+        // Keep the back edge of the upper half aligned with the y=8 split seam.
+        float hingeOffsetZ = -5.0F / 16.0F * MODEL_SCALE;
+        float sin = (float) Math.sin(angle);
+        float cos = (float) Math.cos(angle);
+        Vector3f translation = new Vector3f(
+                0.0F,
+                -hingeOffsetZ * sin,
+                hingeOffsetZ * (cos - 1.0F));
         return new org.bukkit.util.Transformation(
-                new Vector3f(0.0F, 0.0F, 0.0F),
+                translation,
                 new AxisAngle4f(angle, 1.0F, 0.0F, 0.0F),
                 new Vector3f(MODEL_SCALE, MODEL_SCALE, MODEL_SCALE),
                 new AxisAngle4f(0.0F, 0.0F, 1.0F, 0.0F));
     }
 
-    public record AnimationPair(ItemDisplay lower, ItemDisplay upper) {
+    public record AnimationPair(ItemDisplay lower, ItemDisplay upper) implements ChestAnimation {
+        @Override
         public boolean isValid() {
             return lower != null && upper != null && lower.isValid() && upper.isValid();
         }
+
+        @Override
+        public void open(int durationTicks) {
+            if (!isValid()) return;
+            upper.setInterpolationDelay(0);
+            upper.setInterpolationDuration(durationTicks);
+            upper.setTransformation(transform(OPEN_ANGLE));
+        }
+
+        @Override
+        public void close(int durationTicks) {
+            if (!isValid()) return;
+            upper.setInterpolationDelay(0);
+            upper.setInterpolationDuration(durationTicks);
+            upper.setTransformation(transform(0.0F));
+        }
+
+        @Override
         public void remove() {
             if (upper != null && upper.isValid()) upper.remove();
             if (lower != null && lower.isValid()) lower.remove();

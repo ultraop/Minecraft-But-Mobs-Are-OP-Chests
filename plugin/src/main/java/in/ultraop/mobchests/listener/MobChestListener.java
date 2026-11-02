@@ -1,17 +1,21 @@
 package in.ultraop.mobchests.listener;
 
 import in.ultraop.mobchests.UltraOPMobChestsPlugin;
+import in.ultraop.mobchests.animation.ChestAnimation;
 import in.ultraop.mobchests.animation.CowChestAnimator;
-import in.ultraop.mobchests.animation.CowChestAnimator.AnimationPair;
+import in.ultraop.mobchests.animation.CreeperChestAnimator;
 import in.ultraop.mobchests.inventory.MobChestInventoryHolder;
 import in.ultraop.mobchests.loot.MobLootGenerator;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
+import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.entity.Cow;
+import org.bukkit.entity.Creeper;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.Item;
 import org.bukkit.entity.Mob;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -19,31 +23,30 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
+import org.bukkit.event.entity.ExplosionPrimeEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.world.ChunkLoadEvent;
 import org.bukkit.event.world.ChunkUnloadEvent;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
 
-import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * First visual/gameplay vertical slice: one-time Cow chest interaction.
- *
- * State transitions:
- * NORMAL -> FROZEN -> OPENING -> LOOT_OPEN -> LOOTED
- *
- * The original Cow is never replaced. Its AI/physics state is saved and
- * restored. During the open session it is hidden behind two temporary
- * resource-pack-backed ItemDisplays. All state changes occur on the server
- * thread and are persisted in the Cow's PDC.
+ * Two-click chest interaction for the Cow body-split and Creeper head-lid
+ * prototypes. Other mobs remain untouched until their own models are ready.
  */
 public final class MobChestListener implements Listener {
     private static final String NORMAL = "NORMAL";
@@ -54,7 +57,8 @@ public final class MobChestListener implements Listener {
     private static final String LOOTED = "LOOTED";
 
     private final UltraOPMobChestsPlugin plugin;
-    private final CowChestAnimator animator;
+    private final CowChestAnimator cowAnimator;
+    private final CreeperChestAnimator creeperAnimator;
 
     private final NamespacedKey stateKey;
     private final NamespacedKey originalAiKey;
@@ -71,13 +75,14 @@ public final class MobChestListener implements Listener {
 
     private final Map<UUID, BukkitTask> freezeTasks = new HashMap<>();
     private final Map<UUID, BukkitTask> openTasks = new HashMap<>();
-    private final Map<UUID, AnimationPair> animations = new HashMap<>();
-    private final Map<UUID, Cow> activeMobs = new HashMap<>();
+    private final Map<UUID, ChestAnimation> animations = new HashMap<>();
+    private final Map<UUID, Mob> activeMobs = new HashMap<>();
     private final Map<UUID, UUID> openers = new HashMap<>();
 
     public MobChestListener(UltraOPMobChestsPlugin plugin) {
         this.plugin = plugin;
-        this.animator = new CowChestAnimator(plugin);
+        this.cowAnimator = new CowChestAnimator(plugin);
+        this.creeperAnimator = new CreeperChestAnimator(plugin);
         this.stateKey = key("state");
         this.originalAiKey = key("original_ai");
         this.originalAwareKey = key("original_aware");
@@ -96,57 +101,59 @@ public final class MobChestListener implements Listener {
         return new NamespacedKey(plugin, value);
     }
 
+    private boolean isSupported(Mob mob) {
+        return mob instanceof Creeper || (mob instanceof Cow cow && cow.isAdult());
+    }
+
+    private boolean isLocked(Mob mob) {
+        String state = getState(mob);
+        return FROZEN.equals(state) || OPENING.equals(state) || LOOT_OPEN.equals(state) || CLOSING.equals(state);
+    }
+
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onMobRightClick(PlayerInteractEntityEvent event) {
-        if (!plugin.settings().cowPrototypeEnabled() || event.getHand() != org.bukkit.inventory.EquipmentSlot.HAND) {
+        if (!plugin.settings().cowPrototypeEnabled()
+                || event.getHand() != org.bukkit.inventory.EquipmentSlot.HAND
+                || !(event.getRightClicked() instanceof Mob mob)
+                || !isSupported(mob)) {
             return;
-        }
-        if (!(event.getRightClicked() instanceof Cow cow)) {
-            return; // The first animation proof-of-concept is deliberately Cow-only.
-        }
-        if (!cow.isAdult()) {
-            return; // Baby Cow proportions are not covered by the current model prototype.
         }
 
-        String state = getState(cow);
+        String state = getState(mob);
         if (NORMAL.equals(state)) {
             event.setCancelled(true);
-            freeze(cow, event.getPlayer());
-            return;
-        }
-        if (FROZEN.equals(state)) {
+            freeze(mob, event.getPlayer());
+        } else if (FROZEN.equals(state)) {
             event.setCancelled(true);
-            beginOpening(cow, event.getPlayer());
-            return;
-        }
-        if (OPENING.equals(state) || LOOT_OPEN.equals(state) || CLOSING.equals(state)) {
+            beginOpening(mob, event.getPlayer());
+        } else if (OPENING.equals(state) || LOOT_OPEN.equals(state) || CLOSING.equals(state)) {
             event.setCancelled(true);
             event.getPlayer().sendActionBar("This mob chest is already opening.");
         }
-        // LOOTED is intentionally not cancelled: the Cow behaves like a
-        // normal Cow again, but the plugin never opens its chest a second time.
+        // LOOTED mobs use their normal vanilla interaction and behaviour.
     }
 
-    private void freeze(Cow cow, Player player) {
-        PersistentDataContainer data = cow.getPersistentDataContainer();
-        data.set(originalAiKey, PersistentDataType.BYTE, bool(cow.hasAI()));
-        data.set(originalAwareKey, PersistentDataType.BYTE, bool(cow.isAware()));
-        data.set(originalGravityKey, PersistentDataType.BYTE, bool(cow.hasGravity()));
-        data.set(originalInvisibleKey, PersistentDataType.BYTE, bool(cow.isInvisible()));
-        data.set(originalCollidableKey, PersistentDataType.BYTE, bool(cow.isCollidable()));
+    private void freeze(Mob mob, Player player) {
+        PersistentDataContainer data = mob.getPersistentDataContainer();
+        data.set(originalAiKey, PersistentDataType.BYTE, bool(mob.hasAI()));
+        data.set(originalAwareKey, PersistentDataType.BYTE, bool(mob.isAware()));
+        data.set(originalGravityKey, PersistentDataType.BYTE, bool(mob.hasGravity()));
+        data.set(originalInvisibleKey, PersistentDataType.BYTE, bool(mob.isInvisible()));
+        data.set(originalCollidableKey, PersistentDataType.BYTE, bool(mob.isCollidable()));
 
-        Location anchor = cow.getLocation();
+        Location anchor = mob.getLocation();
         data.set(anchorWorldKey, PersistentDataType.STRING, anchor.getWorld().getUID().toString());
         data.set(anchorXKey, PersistentDataType.DOUBLE, anchor.getX());
         data.set(anchorYKey, PersistentDataType.DOUBLE, anchor.getY());
         data.set(anchorZKey, PersistentDataType.DOUBLE, anchor.getZ());
         data.set(anchorYawKey, PersistentDataType.FLOAT, anchor.getYaw());
         data.set(anchorPitchKey, PersistentDataType.FLOAT, anchor.getPitch());
-        setState(cow, FROZEN);
-        applyFrozenState(cow);
-        startFreezeEnforcer(cow);
 
-        player.sendMessage("§6§lMOB CHEST §8» §eCow frozen. Right-click it again to open.");
+        setState(mob, FROZEN);
+        applyFrozenState(mob);
+        startFreezeEnforcer(mob);
+        mob.getWorld().playSound(mob.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 0.25F, 1.7F);
+        player.sendMessage("§6§lMOB CHEST §8» §e" + mob.getType().name() + " frozen. Right-click again to open.");
     }
 
     private void applyFrozenState(Mob mob) {
@@ -156,11 +163,20 @@ public final class MobChestListener implements Listener {
         mob.setVelocity(new Vector(0.0, 0.0, 0.0));
         mob.setFallDistance(0.0F);
         mob.setTarget(null);
+        if (mob instanceof Creeper creeper) {
+            disarmCreeper(creeper);
+        }
+    }
+
+    private void disarmCreeper(Creeper creeper) {
+        creeper.setFuseTicks(0);
+        creeper.setIgnited(false);
     }
 
     private void startFreezeEnforcer(Mob mob) {
         UUID id = mob.getUniqueId();
         stopTask(freezeTasks.remove(id));
+        int[] ticks = {0};
         BukkitTask task = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
             if (!mob.isValid() || mob.isDead() || !FROZEN.equals(getState(mob))) {
                 stopTask(freezeTasks.remove(id));
@@ -168,15 +184,18 @@ public final class MobChestListener implements Listener {
             }
             applyFrozenState(mob);
             Location anchor = readAnchor(mob);
-            if (anchor == null) {
-                return;
-            }
+            if (anchor == null) return;
+
             if (!mob.getWorld().equals(anchor.getWorld())
-                    || mob.getLocation().distanceSquared(anchor) > 0.0001
-                    || Math.abs(mob.getYaw() - anchor.getYaw()) > 1.0F
-                    || Math.abs(mob.getPitch() - anchor.getPitch()) > 1.0F) {
+                    || mob.getLocation().distanceSquared(anchor) > 0.0001) {
                 mob.teleport(anchor);
+            } else if (ticks[0] % 6 == 0) {
+                // Very light alternating sway: visible as a frightened tremble,
+                // but subtle enough not to become distracting.
+                float sway = ((ticks[0] / 6) % 2 == 0) ? 0.65F : -0.65F;
+                mob.setRotation(anchor.getYaw() + sway, anchor.getPitch());
             }
+            ticks[0]++;
         }, 1L, 1L);
         freezeTasks.put(id, task);
     }
@@ -189,9 +208,7 @@ public final class MobChestListener implements Listener {
         Double z = data.get(anchorZKey, PersistentDataType.DOUBLE);
         Float yaw = data.get(anchorYawKey, PersistentDataType.FLOAT);
         Float pitch = data.get(anchorPitchKey, PersistentDataType.FLOAT);
-        if (worldId == null || x == null || y == null || z == null) {
-            return null;
-        }
+        if (worldId == null || x == null || y == null || z == null) return null;
         org.bukkit.World world;
         try {
             world = Bukkit.getWorld(UUID.fromString(worldId));
@@ -199,63 +216,100 @@ public final class MobChestListener implements Listener {
             return null;
         }
         return world == null ? null : new Location(world, x, y, z,
-                yaw == null ? mob.getYaw() : yaw,
-                pitch == null ? mob.getPitch() : pitch);
+                yaw == null ? mob.getYaw() : yaw, pitch == null ? mob.getPitch() : pitch);
     }
 
-    private void beginOpening(Cow cow, Player player) {
-        UUID id = cow.getUniqueId();
-        if (openers.containsKey(id)) {
-            return;
-        }
+    private ChestAnimation createAnimation(Mob mob) {
+        if (mob instanceof Cow cow) return cowAnimator.create(cow);
+        if (mob instanceof Creeper creeper) return creeperAnimator.create(creeper);
+        throw new IllegalArgumentException("No visual animation model for " + mob.getType());
+    }
+
+    private void beginOpening(Mob mob, Player player) {
+        UUID id = mob.getUniqueId();
+        if (openers.containsKey(id)) return;
 
         stopTask(freezeTasks.remove(id));
-        setState(cow, OPENING);
-        applyFrozenState(cow);
+        setState(mob, OPENING);
+        applyFrozenState(mob);
 
         int openTicks = plugin.settings().openAnimationTicks();
-        AnimationPair pair;
         try {
-            pair = animator.create(cow);
-            animations.put(id, pair);
-            cow.setInvisible(true);
-            cow.getWorld().playSound(cow.getLocation(), Sound.BLOCK_CHEST_OPEN, 0.9F, 1.0F);
-            animator.open(pair, openTicks);
+            ChestAnimation animation = createAnimation(mob);
+            animations.put(id, animation);
+            mob.setInvisible(true);
+            mob.getWorld().playSound(mob.getLocation(), Sound.BLOCK_CHEST_OPEN, 0.9F, 1.0F);
+            mob.getWorld().playSound(mob.getLocation(), Sound.ENTITY_FIREWORK_ROCKET_LAUNCH, 0.65F, 1.15F);
+            animation.open(openTicks);
         } catch (RuntimeException exception) {
-            plugin.getLogger().severe("Cow chest animation could not start for " + id + ": " + exception.getMessage());
-            recoverToFrozen(cow);
-            player.sendMessage("§cThe mob chest animation could not start. The Cow has been returned to its frozen state.");
+            plugin.getLogger().severe("Mob chest animation could not start for " + id + ": " + exception.getMessage());
+            recoverToFrozen(mob);
+            player.sendMessage("§cThe chest animation could not start. The mob has been returned to its frozen state.");
             return;
         }
 
-        activeMobs.put(id, cow);
+        activeMobs.put(id, mob);
         openers.put(id, player.getUniqueId());
         BukkitTask task = Bukkit.getScheduler().runTaskLater(plugin, () -> {
             openTasks.remove(id);
-            if (!cow.isValid() || cow.isDead() || !player.isOnline() || !OPENING.equals(getState(cow))) {
-                consumeAndRestore(cow, false);
+            if (!mob.isValid() || mob.isDead() || !player.isOnline() || !OPENING.equals(getState(mob))) {
+                consumeAndRestore(mob, false);
                 return;
             }
-            setState(cow, LOOT_OPEN);
+            setState(mob, LOOT_OPEN);
             try {
-                Inventory inventory = MobLootGenerator.create(id, cow.getType(), plugin);
+                Inventory inventory = MobLootGenerator.create(id, mob.getType(), plugin);
                 player.openInventory(inventory);
-                player.sendActionBar("Take what you need. Closing this inventory uses this mob chest permanently.");
+                launchLootBurst(mob, inventory);
+                player.sendActionBar("Take what you need. This mob chest can only be opened once.");
             } catch (RuntimeException exception) {
-                plugin.getLogger().severe("Could not open Cow chest inventory for " + id + ": " + exception.getMessage());
-                consumeAndRestore(cow, false);
-                player.sendMessage("§cThe chest inventory failed to open. The Cow has been safely restored.");
+                plugin.getLogger().severe("Could not open mob chest inventory for " + id + ": " + exception.getMessage());
+                consumeAndRestore(mob, false);
+                player.sendMessage("§cThe chest inventory failed to open. The mob has been safely restored.");
             }
         }, openTicks);
         openTasks.put(id, task);
     }
 
+    private void launchLootBurst(Mob mob, Inventory inventory) {
+        List<Integer> occupied = new ArrayList<>();
+        for (int slot = 0; slot < inventory.getSize(); slot++) {
+            ItemStack stack = inventory.getItem(slot);
+            if (stack != null && !stack.getType().isAir()) occupied.add(slot);
+        }
+        if (occupied.isEmpty()) return;
+
+        Collections.shuffle(occupied, ThreadLocalRandom.current());
+        int burstStacks = Math.max(1, Math.min(2, occupied.size() / 4));
+        Location origin = mob.getLocation().clone().add(0.0, Math.max(0.9, mob.getHeight() * 0.7), 0.0);
+        ThreadLocalRandom random = ThreadLocalRandom.current();
+
+        for (int i = 0; i < burstStacks; i++) {
+            int slot = occupied.get(i);
+            ItemStack stack = inventory.getItem(slot);
+            if (stack == null || stack.getType().isAir()) continue;
+            ItemStack ejected = stack.clone();
+            inventory.clear(slot);
+
+            double angle = random.nextDouble(0.0, Math.PI * 2.0);
+            double horizontal = random.nextDouble(0.12, 0.32);
+            double vertical = random.nextDouble(0.52, 0.76);
+            Item item = mob.getWorld().dropItem(origin, ejected);
+            item.setPickupDelay(10);
+            item.setVelocity(new Vector(Math.cos(angle) * horizontal, vertical, Math.sin(angle) * horizontal));
+        }
+
+        mob.getWorld().playSound(origin, Sound.ENTITY_FIREWORK_ROCKET_BLAST, 0.8F, 1.0F);
+        mob.getWorld().spawnParticle(Particle.CLOUD, origin, 14, 0.28, 0.24, 0.28, 0.04);
+        mob.getWorld().spawnParticle(Particle.TOTEM_OF_UNDYING, origin, 22, 0.32, 0.32, 0.32, 0.18);
+        mob.getWorld().spawnParticle(Particle.CRIT, origin, 16, 0.25, 0.30, 0.25, 0.12);
+    }
+
     @EventHandler(priority = EventPriority.MONITOR)
     public void onInventoryClose(InventoryCloseEvent event) {
-        if (!(event.getInventory().getHolder() instanceof MobChestInventoryHolder holder)) {
-            return;
+        if (event.getInventory().getHolder() instanceof MobChestInventoryHolder holder) {
+            finishSession(holder.mobId(), true);
         }
-        finishSession(holder.mobId(), true);
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
@@ -265,86 +319,82 @@ public final class MobChestListener implements Listener {
                 .filter(entry -> entry.getValue().equals(playerId))
                 .map(Map.Entry::getKey)
                 .findFirst().orElse(null);
-        if (mobId != null) {
-            finishSession(mobId, true);
-        }
+        if (mobId != null) finishSession(mobId, true);
     }
 
     private void finishSession(UUID mobId, boolean animateClose) {
-        Cow cow = activeMobs.get(mobId);
-        if (cow == null) {
-            return;
-        }
-        String state = getState(cow);
-        if (!OPENING.equals(state) && !LOOT_OPEN.equals(state)) {
-            return;
-        }
+        Mob mob = activeMobs.get(mobId);
+        if (mob == null) return;
+        String state = getState(mob);
+        if (!OPENING.equals(state) && !LOOT_OPEN.equals(state)) return;
 
-        // Closing is a terminal one-shot state. Repeated clicks are blocked
-        // until the lid finishes closing and the real mob is restored.
-        setState(cow, CLOSING);
+        setState(mob, CLOSING);
         openers.remove(mobId);
         stopTask(openTasks.remove(mobId));
 
-        AnimationPair pair = animations.get(mobId);
-        if (animateClose && cow.isValid() && pair != null && pair.isValid()) {
-            cow.getWorld().playSound(cow.getLocation(), Sound.BLOCK_CHEST_CLOSE, 0.9F, 1.0F);
-            int closeTicks = plugin.settings().closeAnimationTicks();
-            animator.close(pair, closeTicks);
+        ChestAnimation animation = animations.get(mobId);
+        int closeTicks = plugin.settings().closeAnimationTicks();
+        if (animateClose && mob.isValid() && animation != null && animation.isValid()) {
+            mob.getWorld().playSound(mob.getLocation(), Sound.BLOCK_CHEST_CLOSE, 0.9F, 1.0F);
+            animation.close(closeTicks);
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                animator.remove(animations.remove(mobId));
+                removeAnimation(mobId);
                 activeMobs.remove(mobId);
-                setState(cow, LOOTED);
-                restoreNormalState(cow);
-            }, plugin.settings().closeAnimationTicks());
+                setState(mob, LOOTED);
+                restoreNormalState(mob);
+            }, closeTicks);
         } else {
-            animator.remove(animations.remove(mobId));
+            removeAnimation(mobId);
             activeMobs.remove(mobId);
-            setState(cow, LOOTED);
-            restoreNormalState(cow);
+            setState(mob, LOOTED);
+            restoreNormalState(mob);
         }
     }
 
-    private void consumeAndRestore(Cow cow, boolean animateClose) {
-        finishSession(cow.getUniqueId(), animateClose);
-        if (OPENING.equals(getState(cow)) || LOOT_OPEN.equals(getState(cow)) || CLOSING.equals(getState(cow))) {
-            setState(cow, LOOTED);
-            animator.remove(animations.remove(cow.getUniqueId()));
-            activeMobs.remove(cow.getUniqueId());
-            openers.remove(cow.getUniqueId());
-            restoreNormalState(cow);
+    private void removeAnimation(UUID mobId) {
+        ChestAnimation animation = animations.remove(mobId);
+        if (animation != null) animation.remove();
+    }
+
+    private void consumeAndRestore(Mob mob, boolean animateClose) {
+        finishSession(mob.getUniqueId(), animateClose);
+        String state = getState(mob);
+        if (OPENING.equals(state) || LOOT_OPEN.equals(state) || CLOSING.equals(state)) {
+            setState(mob, LOOTED);
+            removeAnimation(mob.getUniqueId());
+            activeMobs.remove(mob.getUniqueId());
+            openers.remove(mob.getUniqueId());
+            restoreNormalState(mob);
         }
     }
 
-    private void recoverToFrozen(Cow cow) {
-        animator.remove(animations.remove(cow.getUniqueId()));
-        activeMobs.remove(cow.getUniqueId());
-        openers.remove(cow.getUniqueId());
-        cow.setInvisible(readBool(cow, originalInvisibleKey, false));
-        setState(cow, FROZEN);
-        applyFrozenState(cow);
-        startFreezeEnforcer(cow);
+    private void recoverToFrozen(Mob mob) {
+        removeAnimation(mob.getUniqueId());
+        activeMobs.remove(mob.getUniqueId());
+        openers.remove(mob.getUniqueId());
+        mob.setInvisible(readBool(mob, originalInvisibleKey, false));
+        setState(mob, FROZEN);
+        applyFrozenState(mob);
+        startFreezeEnforcer(mob);
     }
 
-    private void restoreNormalState(Cow cow) {
-        if (cow == null || !cow.isValid() || cow.isDead()) {
-            return;
-        }
-        PersistentDataContainer data = cow.getPersistentDataContainer();
-        cow.setAI(readBool(cow, originalAiKey, true));
-        cow.setAware(readBool(cow, originalAwareKey, true));
-        cow.setGravity(readBool(cow, originalGravityKey, true));
-        cow.setInvisible(readBool(cow, originalInvisibleKey, false));
-        cow.setCollidable(readBool(cow, originalCollidableKey, true));
-        cow.setVelocity(new Vector(0.0, 0.0, 0.0));
-        cow.setFallDistance(0.0F);
-
+    private void restoreNormalState(Mob mob) {
+        if (mob == null || !mob.isValid() || mob.isDead()) return;
+        PersistentDataContainer data = mob.getPersistentDataContainer();
+        mob.setAI(readBool(mob, originalAiKey, true));
+        mob.setAware(readBool(mob, originalAwareKey, true));
+        mob.setGravity(readBool(mob, originalGravityKey, true));
+        mob.setInvisible(readBool(mob, originalInvisibleKey, false));
+        mob.setCollidable(readBool(mob, originalCollidableKey, true));
+        mob.setVelocity(new Vector(0.0, 0.0, 0.0));
+        mob.setFallDistance(0.0F);
+        if (mob instanceof Creeper creeper) disarmCreeper(creeper);
         removeStoredOriginals(data);
         removeAnchor(data);
     }
 
-    private boolean readBool(Cow cow, NamespacedKey key, boolean fallback) {
-        Byte value = cow.getPersistentDataContainer().get(key, PersistentDataType.BYTE);
+    private boolean readBool(Mob mob, NamespacedKey key, boolean fallback) {
+        Byte value = mob.getPersistentDataContainer().get(key, PersistentDataType.BYTE);
         return value == null ? fallback : value != 0;
     }
 
@@ -374,50 +424,56 @@ public final class MobChestListener implements Listener {
                 stateKey, PersistentDataType.STRING, NORMAL);
     }
 
-    private void setState(Cow cow, String state) {
-        cow.getPersistentDataContainer().set(stateKey, PersistentDataType.STRING, state);
+    private void setState(Mob mob, String state) {
+        mob.getPersistentDataContainer().set(stateKey, PersistentDataType.STRING, state);
     }
 
     private void stopTask(BukkitTask task) {
-        if (task != null) {
-            task.cancel();
+        if (task != null) task.cancel();
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void protectOpeningMob(EntityDamageEvent event) {
+        if (event.getEntity() instanceof Mob mob
+                && isSupported(mob)
+                && (OPENING.equals(getState(mob)) || LOOT_OPEN.equals(getState(mob))
+                || CLOSING.equals(getState(mob)))) {
+            event.setCancelled(true);
         }
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-    public void protectOpeningCow(EntityDamageEvent event) {
-        if (event.getEntity() instanceof Cow cow) {
-            String state = getState(cow);
-            if (OPENING.equals(state) || LOOT_OPEN.equals(state) || CLOSING.equals(state)) {
-                event.setCancelled(true);
-            }
+    public void stopFrozenCreeperExplosion(ExplosionPrimeEvent event) {
+        if (event.getEntity() instanceof Creeper creeper && isLocked(creeper)) {
+            event.setCancelled(true);
+            disarmCreeper(creeper);
         }
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
-    public void onCowDeath(EntityDeathEvent event) {
-        if (!(event.getEntity() instanceof Cow cow)) {
-            return;
-        }
-        UUID id = cow.getUniqueId();
+    public void onSupportedMobDeath(EntityDeathEvent event) {
+        if (!(event.getEntity() instanceof Mob mob) || !isSupportedType(mob)) return;
+        UUID id = mob.getUniqueId();
         stopTask(freezeTasks.remove(id));
         stopTask(openTasks.remove(id));
-        animator.remove(animations.remove(id));
+        removeAnimation(id);
         activeMobs.remove(id);
         openers.remove(id);
-        // Do not modify drops or XP: vanilla death rewards must remain intact.
+        // Never change the mob's vanilla drops or experience.
+    }
+
+    private boolean isSupportedType(Mob mob) {
+        return mob instanceof Cow || mob instanceof Creeper;
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onChunkUnload(ChunkUnloadEvent event) {
         for (Entity entity : event.getChunk().getEntities()) {
-            if (!(entity instanceof Cow cow)) {
-                continue;
-            }
-            UUID id = cow.getUniqueId();
+            if (!(entity instanceof Mob mob) || !isSupportedType(mob)) continue;
+            UUID id = mob.getUniqueId();
             stopTask(freezeTasks.remove(id));
-            if (OPENING.equals(getState(cow)) || LOOT_OPEN.equals(getState(cow)) || CLOSING.equals(getState(cow))) {
-                consumeAndRestore(cow, false);
+            if (OPENING.equals(getState(mob)) || LOOT_OPEN.equals(getState(mob)) || CLOSING.equals(getState(mob))) {
+                consumeAndRestore(mob, false);
             }
         }
     }
@@ -429,60 +485,44 @@ public final class MobChestListener implements Listener {
 
     public void recoverLoadedEntities() {
         for (org.bukkit.World world : Bukkit.getWorlds()) {
-            for (Chunk chunk : world.getLoadedChunks()) {
-                recoverChunk(chunk);
-            }
+            for (Chunk chunk : world.getLoadedChunks()) recoverChunk(chunk);
         }
     }
 
     private void recoverChunk(Chunk chunk) {
         for (Entity entity : chunk.getEntities()) {
-            if (!(entity instanceof Cow cow)) {
-                continue;
-            }
-            String state = getState(cow);
+            if (!(entity instanceof Mob mob) || !isSupportedType(mob)) continue;
+            String state = getState(mob);
             if (FROZEN.equals(state)) {
-                applyFrozenState(cow);
-                startFreezeEnforcer(cow);
+                applyFrozenState(mob);
+                startFreezeEnforcer(mob);
             } else if (OPENING.equals(state) || LOOT_OPEN.equals(state) || CLOSING.equals(state)) {
-                // A server crash/restart cannot leave a hidden or permanently
-                // half-open Cow. The one-time attempt is consumed safely.
-                setState(cow, LOOTED);
-                animator.remove(animations.remove(cow.getUniqueId()));
-                restoreNormalState(cow);
-            } else if (LOOTED.equals(state) && cow.isInvisible()) {
-                // Defensive recovery if the server stopped between state
-                // transition and visibility restoration.
-                restoreNormalState(cow);
+                setState(mob, LOOTED);
+                removeAnimation(mob.getUniqueId());
+                restoreNormalState(mob);
+            } else if (LOOTED.equals(state) && mob.isInvisible()) {
+                restoreNormalState(mob);
             }
         }
     }
 
     public void shutdown() {
-        for (BukkitTask task : freezeTasks.values()) {
-            task.cancel();
-        }
+        for (BukkitTask task : freezeTasks.values()) task.cancel();
         freezeTasks.clear();
 
-        for (UUID mobId : new java.util.ArrayList<>(activeMobs.keySet())) {
-            Cow cow = activeMobs.get(mobId);
-            if (cow != null && cow.isValid()) {
-                setState(cow, LOOTED);
-                animator.remove(animations.remove(mobId));
-                restoreNormalState(cow);
+        for (UUID mobId : new ArrayList<>(activeMobs.keySet())) {
+            Mob mob = activeMobs.get(mobId);
+            if (mob != null && mob.isValid()) {
+                setState(mob, LOOTED);
+                removeAnimation(mobId);
+                restoreNormalState(mob);
             }
         }
         activeMobs.clear();
         openers.clear();
-        for (BukkitTask task : openTasks.values()) {
-            task.cancel();
-        }
+        for (BukkitTask task : openTasks.values()) task.cancel();
         openTasks.clear();
-        for (AnimationPair pair : animations.values()) {
-            animator.remove(pair);
-        }
-        animations.clear();
-        // FROZEN mobs deliberately remain frozen; their PDC state lets the
-        // next plugin enable reattach the freeze-enforcer task.
+        for (UUID id : new ArrayList<>(animations.keySet())) removeAnimation(id);
+        // FROZEN mobs remain frozen in PDC and resume the enforcer on next enable.
     }
 }
