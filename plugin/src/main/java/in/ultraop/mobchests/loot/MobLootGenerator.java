@@ -15,6 +15,7 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.LeatherArmorMeta;
+import org.bukkit.World;
 import org.bukkit.persistence.PersistentDataType;
 
 import java.util.ArrayList;
@@ -44,7 +45,7 @@ public final class MobLootGenerator {
 
     private MobLootGenerator() { }
 
-    public static Inventory create(java.util.UUID mobId, EntityType type,
+    public static Inventory create(java.util.UUID mobId, EntityType type, World.Environment environment,
                                    UltraOPMobChestsPlugin plugin) {
         ThreadLocalRandom random = ThreadLocalRandom.current();
         MobChestInventoryHolder holder = new MobChestInventoryHolder(mobId);
@@ -60,7 +61,7 @@ public final class MobLootGenerator {
         Collections.shuffle(slots, random);
 
         for (int i = 0; i < stacks; i++) {
-            inventory.setItem(slots.get(i), reward(type, rollRarity(type, plugin, random), plugin, random));
+            inventory.setItem(slots.get(i), reward(type, environment, rollRarity(type, plugin, random), plugin, random));
         }
 
         // Special rewards occupy fresh slots; they never overwrite another reward.
@@ -117,18 +118,18 @@ public final class MobLootGenerator {
         return Math.max(0.0, Math.min(1.0, plugin.getConfig().getDouble(path, fallback)));
     }
 
-    private static ItemStack reward(EntityType type, Rarity rarity,
+    private static ItemStack reward(EntityType type, World.Environment environment, Rarity rarity,
                                     UltraOPMobChestsPlugin plugin,
                                     ThreadLocalRandom random) {
         return switch (rarity) {
-            case COMMON -> stack(randomMaterial(commonPool(type)), random, 1, 5);
-            case UNCOMMON -> stack(randomMaterial(List.of(
-                    "IRON_INGOT", "GOLD_INGOT", "EMERALD", "EXPERIENCE_BOTTLE",
-                    "GOLDEN_CARROT", "ENDER_PEARL")), random, 1, 3);
-            case RARE -> random.nextBoolean()
+            case COMMON -> stack(randomMaterial(commonPool(type, environment)), random, 1, 5);
+            case UNCOMMON -> stack(randomMaterial(uncommonPool(environment)), random, 1, 3);
+            case RARE -> random.nextDouble() < 0.42
+                    ? stack(randomMaterial(dimensionRarePool(environment)), random, 1, 2)
+                    : random.nextBoolean()
                     ? enchantedGear(random)
                     : stack(randomMaterial(List.of("DIAMOND", "GOLDEN_APPLE", "ENDER_EYE",
-                    "NETHERITE_SCRAP", "AMETHYST_SHARD")), random, 1, 2);
+                    "AMETHYST_SHARD", "EXPERIENCE_BOTTLE")), random, 1, 2);
             case EPIC -> random.nextBoolean()
                     ? customEnchantmentTome(plugin, random)
                     : artifact(plugin, random, "Epic");
@@ -137,7 +138,7 @@ public final class MobLootGenerator {
         };
     }
 
-    private static List<String> commonPool(EntityType type) {
+    private static List<String> familyCommonPool(EntityType type) {
         String name = type.name();
         if (name.equals("COW")) return List.of("BEEF", "LEATHER", "WHEAT", "BREAD", "APPLE");
         if (name.equals("PIG") || name.equals("HOGLIN") || name.equals("ZOGLIN")) {
@@ -168,6 +169,58 @@ public final class MobLootGenerator {
         }
         if (isPassive(name)) return PASSIVE_COMMON;
         return GENERIC_COMMON;
+    }
+
+    private static List<String> commonPool(EntityType type, World.Environment environment) {
+        List<String> pool = new ArrayList<>(familyCommonPool(type));
+        // Broad utility mix: navigation, crafting, building and basic progression.
+        pool.addAll(List.of(
+                "PAPER", "COMPASS", "MAP", "CLOCK", "BOOK", "FEATHER", "STRING",
+                "IRON_NUGGET", "COAL", "COPPER_INGOT", "REDSTONE", "LAPIS_LAZULI",
+                "GOLD_NUGGET", "BREAD", "ARROW", "LEATHER", "TORCH", "STICK"));
+        pool.addAll(dimensionCommonPool(environment));
+        return pool;
+    }
+
+    private static List<String> dimensionCommonPool(World.Environment environment) {
+        return switch (environment) {
+            case NORMAL -> List.of(
+                    "OBSIDIAN", "FLINT", "FLINT_AND_STEEL", "IRON_INGOT",
+                    "PAPER", "COMPASS", "MAP", "CLOCK", "GOLD_INGOT");
+            case NETHER -> List.of(
+                    "NETHER_QUARTZ_ORE", "QUARTZ", "GLOWSTONE_DUST", "MAGMA_CREAM",
+                    "BLAZE_ROD", "GOLD_NUGGET", "GOLD_INGOT", "NETHER_BRICK",
+                    "SOUL_SAND", "SOUL_SOIL", "NETHERRACK");
+            case THE_END -> List.of(
+                    "ENDER_PEARL", "CHORUS_FRUIT", "PURPUR_BLOCK", "END_STONE",
+                    "PHANTOM_MEMBRANE", "AMETHYST_SHARD");
+            default -> List.of("PAPER", "COMPASS", "MAP", "CLOCK", "BOOK");
+        };
+    }
+
+    private static List<String> uncommonPool(World.Environment environment) {
+        List<String> pool = new ArrayList<>(List.of(
+                "IRON_INGOT", "GOLD_INGOT", "EMERALD", "EXPERIENCE_BOTTLE",
+                "GOLDEN_CARROT", "ENDER_PEARL", "BOOK", "COMPASS", "MAP",
+                "FLINT_AND_STEEL", "OBSIDIAN"));
+        pool.addAll(dimensionCommonPool(environment));
+        return pool;
+    }
+
+    private static List<String> dimensionRarePool(World.Environment environment) {
+        return switch (environment) {
+            case NORMAL -> List.of(
+                    "OBSIDIAN", "FLINT_AND_STEEL", "DIAMOND", "EMERALD",
+                    "ENDER_PEARL", "GOLDEN_APPLE", "IRON_BLOCK");
+            case NETHER -> List.of(
+                    "ANCIENT_DEBRIS", "NETHERITE_SCRAP", "BLAZE_ROD",
+                    "NETHERITE_INGOT", "GOLD_BLOCK", "MAGMA_CREAM");
+            case THE_END -> List.of(
+                    "SHULKER_SHELL", "DRAGON_BREATH", "CHORUS_FRUIT",
+                    "ENDER_EYE", "ELYTRA", "END_CRYSTAL");
+            default -> List.of(
+                    "DIAMOND", "EMERALD", "GOLDEN_APPLE", "ENDER_EYE");
+        };
     }
 
     private static boolean isPassive(String name) {
@@ -248,7 +301,6 @@ public final class MobLootGenerator {
         int index = random.nextInt(ids.length);
         ItemStack item = taggedArtifact(plugin, ids[index], names[index], materials[index]);
         ItemMeta meta = item.getItemMeta();
-        meta.setItemModel(new NamespacedKey("ultraop_mobchests", ids[index]));
         meta.lore(List.of(
                 Component.text("Rare golden food", NamedTextColor.GOLD),
                 Component.text("A custom UltraOP reward.", NamedTextColor.GRAY)));
@@ -260,7 +312,6 @@ public final class MobLootGenerator {
         ItemStack item = taggedArtifact(plugin, "liquid_gold_bucket",
                 "Liquid Gold Bucket", Material.BUCKET);
         ItemMeta meta = item.getItemMeta();
-        meta.setItemModel(new NamespacedKey("ultraop_mobchests", "liquid_gold_bucket"));
         meta.getPersistentDataContainer().set(
                 new NamespacedKey(plugin, "custom_fluid_id"),
                 PersistentDataType.STRING, "liquid_gold");
