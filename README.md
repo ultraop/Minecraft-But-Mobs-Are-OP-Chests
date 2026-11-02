@@ -52,7 +52,7 @@ Without a resource pack, golden foods use vanilla item artwork with their custom
 
 The live GUI contents are serialized onto the mob using Paper's ItemStack byte serialization. Inventory click/drag and close events refresh that saved snapshot. After a chest has been used:
 - vanilla mob item drops are cleared;
-- vanilla death XP is set to zero;
+- vanilla XP is preserved;
 - only the remaining serialized chest contents are dropped naturally.
 
 Loot stacks ejected at opening are removed from the GUI first, so they are not included in the saved remainder. A chest that was never opened keeps normal vanilla death drops.
