@@ -306,7 +306,7 @@ public final class MobChestListener implements Listener {
         mob.getWorld().playSound(effectLocation, Sound.ENTITY_FIREWORK_ROCKET_LAUNCH, 0.55F, 1.2F);
         mob.getWorld().spawnParticle(Particle.END_ROD, effectLocation, 8, 0.12, 0.12, 0.12, 0.025);
 
-        animateHeadLook(mob, 0.0F, 88.0F,
+        animateHeadLook(mob, 0.0F, plugin.settings().openingHeadLookDegrees(),
                 plugin.settings().openAnimationTicks(), OPENING, () -> {
                     if (!mob.isValid() || mob.isDead()) return;
                     if (!player.isOnline()) {
@@ -480,7 +480,7 @@ public final class MobChestListener implements Listener {
         Location anchor = readAnchor(mob);
         if (animateClose && mob.isValid() && anchor != null) {
             mob.getWorld().playSound(mob.getLocation(), Sound.BLOCK_CHEST_CLOSE, 0.85F, 1.0F);
-            animateHeadLook(mob, 88.0F, 0.0F,
+            animateHeadLook(mob, plugin.settings().openingHeadLookDegrees(), 0.0F,
                     plugin.settings().closeAnimationTicks(), CLOSING, () -> {
                         activeInventories.remove(mobId);
                         activeMobs.remove(mobId);
