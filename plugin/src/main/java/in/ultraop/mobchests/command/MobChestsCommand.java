@@ -40,7 +40,7 @@ public final class MobChestsCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(plugin.messages().color("&7Minecraft: &f26.3 &8| &7Server: &fPaper"));
         sender.sendMessage(plugin.messages().color("&7Plugin: &f" + plugin.getDescription().getVersion()));
         sender.sendMessage(plugin.messages().color("&7Required Java: &f25"));
-        sender.sendMessage(plugin.messages().color("&7Components: &fPlugin + Datapack + Resource Pack"));
+        sender.sendMessage(plugin.messages().color("&7Components: &fPlugin + Resource Pack (datapack scaffold)"));
         sender.sendMessage(plugin.messages().color("&aInteraction prototype: &fAdult Cow freeze/open animation"));
         sender.sendMessage(plugin.messages().color("&aOne-time GUI: &fClose -> lid shuts -> Cow AI restored"));
         sender.sendMessage(plugin.messages().color("&aLoot engine: &fMob-family pools, variable stacks, weighted rarity"));
