@@ -40,12 +40,14 @@ public final class MobChestsCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(plugin.messages().color("&7Minecraft: &f26.3 &8| &7Server: &fPaper"));
         sender.sendMessage(plugin.messages().color("&7Plugin: &f" + plugin.getDescription().getVersion()));
         sender.sendMessage(plugin.messages().color("&7Required Java: &f25"));
-        sender.sendMessage(plugin.messages().color("&7Components: &fPlugin + Resource Pack (datapack scaffold)"));
-        sender.sendMessage(plugin.messages().color("&aInteraction models: &fAdult Cow body split + Creeper head lid"));
-        sender.sendMessage(plugin.messages().color("&aFreeze: &fAnchored with a subtle alternating tremble"));
-        sender.sendMessage(plugin.messages().color("&aLoot opening: &fFirework sound, upward burst and one GUI session"));
-        sender.sendMessage(plugin.messages().color("&aLoot: &fMob-family pools, golden foods, emerald armour, rare artifacts"));
-        sender.sendMessage(plugin.messages().color("&ePending: &fOther mob models, Liquid Gold fluid abilities, Legend and bosses"));
+        sender.sendMessage(plugin.messages().color("&7Components: &fPaper Plugin only"));
+        sender.sendMessage(plugin.messages().color("&aMob interaction: &fAll configured vanilla Mobs; no size/model replacement"));
+        sender.sendMessage(plugin.messages().color("&aVisual pose: &fVanilla entity pitch; no Resource Pack or Client Mod"));
+        sender.sendMessage(plugin.messages().color("&aFreeze: &fAnchored with a subtle pitch tremble"));
+        sender.sendMessage(plugin.messages().color("&aLoot opening: &fHead/front lift, firework burst and one GUI session"));
+        sender.sendMessage(plugin.messages().color("&aDeath drops: &fRemaining chest items replace vanilla mob drops after use"));
+        sender.sendMessage(plugin.messages().color("&aLoot: &fMob-family and dimension-aware progression pools"));
+        sender.sendMessage(plugin.messages().color("&eLimits: &fIndependent tentacle/body-part animation and custom textures require a client renderer or Resource Pack"));
         sender.sendMessage(plugin.messages().color("&8Use &e/mobchests help &8for commands."));
         sender.sendMessage(plugin.messages().color("&6&l━━━━━━━━━━━━━━━━━━━━━━━━━━━━"));
     }
@@ -58,13 +60,14 @@ public final class MobChestsCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(plugin.messages().color("&6&lMOB CHESTS STATUS"));
         sender.sendMessage(plugin.messages().color("&7Plugin: &aEnabled"));
         sender.sendMessage(plugin.messages().color("&7Config: &aLoaded"));
-        sender.sendMessage(plugin.messages().color("&7Cow body chest: &aPrototype enabled"));
-        sender.sendMessage(plugin.messages().color("&7Creeper head chest: &aPrototype enabled"));
-        sender.sendMessage(plugin.messages().color("&7Freeze tremble and loot burst: &aImplemented"));
-        sender.sendMessage(plugin.messages().color("&7Resource Pack: &eRequired for custom models and item art"));
-        sender.sendMessage(plugin.messages().color("&7Other mob models: &cNot enabled"));
-        sender.sendMessage(plugin.messages().color("&7Liquid Gold flow/abilities: &cNot implemented yet"));
-        sender.sendMessage(plugin.messages().color("&7Legend / boss progression: &cNot implemented"));
+        sender.sendMessage(plugin.messages().color("&7Mob support: &aAll configured vanilla Mob entities"));
+        sender.sendMessage(plugin.messages().color("&7Vanilla size/model: &aUnchanged"));
+        sender.sendMessage(plugin.messages().color("&7Resource Pack / Client Mod: &aNot required"));
+        sender.sendMessage(plugin.messages().color("&7Head/front pose: &aVanilla pitch animation"));
+        sender.sendMessage(plugin.messages().color("&7Saved chest drops replace vanilla drops after use: &aEnabled"));
+        sender.sendMessage(plugin.messages().color("&7Dimension loot: &aOverworld / Nether / End pools"));
+        sender.sendMessage(plugin.messages().color("&7Liquid Gold real fluid and 10-second powers: &cNot implemented"));
+        sender.sendMessage(plugin.messages().color("&7Custom body-part renderers / squid tentacles: &cNot supported by this no-pack mode"));
     }
 
     private void reload(CommandSender sender) {
