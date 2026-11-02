@@ -36,7 +36,7 @@ public final class UltraOPMobChestsPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(mobChestListener, this);
         mobChestListener.recoverLoadedEntities();
 
-        getLogger().info("UltraOP Mob Chests enabled. Resource-pack-free vanilla mob pose interactions and persistent chest loot are active.");
+        getLogger().info("Mob Chests enabled. Resource-pack-free vanilla mob pose interactions and persistent chest loot are active.");
     }
 
     @Override
@@ -45,7 +45,7 @@ public final class UltraOPMobChestsPlugin extends JavaPlugin {
             mobChestListener.shutdown();
             HandlerList.unregisterAll(mobChestListener);
         }
-        getLogger().info("UltraOP Mob Chests disabled.");
+        getLogger().info("Mob Chests disabled.");
     }
 
     public void reloadPluginData() {
