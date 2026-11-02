@@ -1,6 +1,5 @@
 # UltraOP Mob Chests — Minecraft Java 26.3 | Paper | Java 25
-# Cow body-split and Creeper head-lid models are currently enabled.
-# Other mobs remain disabled until their individual models pass visual QA.
+# No client mod or resource pack is required for mob chest interactions.
 
 settings:
   language: en
@@ -8,17 +7,17 @@ settings:
 
 prototype:
   enabled: true
-  supported-entities:
-    - COW
-    - CREEPER
-  adults-only: true
-  open-animation-ticks: 10
-  close-animation-ticks: 8
+  support-all-mobs: true
+  supported-entities: []
+  excluded-entities: []
+  opening-head-pitch-degrees: -90.0
+  open-animation-ticks: 12
+  close-animation-ticks: 10
 
 freeze:
   subtle-tremble-enabled: true
-  tremble-interval-ticks: 6
-  tremble-angle-degrees: 0.65
+  tremble-interval-ticks: 8
+  tremble-pitch-degrees: 0.8
 
 interaction:
   first-right-click-freezes: true
@@ -26,16 +25,18 @@ interaction:
   one-inventory-session-per-entity: true
   close-without-taking-consumes-chest: true
   restore-original-mob-state-on-close: true
-  preserve-vanilla-drops-and-xp-after-looting: true
+  save-remaining-chest-loot-on-mob: true
+  replace-vanilla-drops-after-chest-used: true
 
 loot:
-  minimum-item-stacks: 4
-  maximum-item-stacks: 8
+  minimum-item-stacks: 5
+  maximum-item-stacks: 9
   custom-equipment-chance: 0.10
   liquid-gold-chance: 0.07
   golden-food-chance: 0.06
   burst-max-stacks: 2
   prevent-full-armor-set-per-chest: true
+  dimension-progression-loot: true
 
 rarity:
   common: 70.0
@@ -45,10 +46,6 @@ rarity:
   legendary: 0.8
   mythic: 0.2
 
-resource-pack:
-  required-for-cow-model: true
-  minecraft-version: "26.3"
-  resource-pack-format: "97.1"
-
-# Mob-family loot profiles exist in the plugin. Enable further interactions
-# only after their split-body model has passed real-client visual QA.
+# All chest visuals use the real vanilla mob model and entity pitch.
+# Custom item textures and custom independent body-part renderers require
+# a resource pack or client renderer; this build does not use either.
