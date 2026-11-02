@@ -55,7 +55,7 @@ import java.util.concurrent.ThreadLocalRandom;
  *
  * State: NORMAL -> FROZEN -> OPENING -> LOOT_OPEN -> CLOSING -> LOOTED.
  * Loot contents are saved on the mob itself and become its death drops after
- * the chest has been used. Vanilla drops and XP are then suppressed.
+ * the chest has been used. Vanilla item drops are replaced while normal XP remains.
  */
 public final class MobChestListener implements Listener {
     private static final String NORMAL = "NORMAL";
