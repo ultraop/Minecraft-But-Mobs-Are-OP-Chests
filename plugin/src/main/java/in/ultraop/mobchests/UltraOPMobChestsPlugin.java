@@ -36,7 +36,7 @@ public final class UltraOPMobChestsPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(mobChestListener, this);
         mobChestListener.recoverLoadedEntities();
 
-        getLogger().info("UltraOP Mob Chests enabled. Adult Cow body-split and Creeper head-lid prototypes are active.");
+        getLogger().info("UltraOP Mob Chests enabled. Resource-pack-free vanilla mob pose interactions and persistent chest loot are active.");
     }
 
     @Override
