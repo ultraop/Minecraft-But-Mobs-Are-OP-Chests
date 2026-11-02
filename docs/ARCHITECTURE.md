@@ -20,7 +20,7 @@ First click freezes and applies a mild tremble. Second click smoothly raises the
 
 The plugin serializes the 54-slot GUI with Paper's ItemStack.serializeItemsAsBytes into the mob's PersistentDataContainer. Inventory click, drag, close and player disconnect paths update the stored snapshot.
 
-When a used mob dies, the plugin clears vanilla item drops and death XP, then drops only the remaining serialized chest items. If the chest was never opened, vanilla drops are untouched. Loot ejected during opening is removed from the GUI before spawning, preventing duplication.
+When a used mob dies, the plugin clears vanilla item drops while preserving normal XP, then drops only the remaining serialized chest items. If the chest was never opened, vanilla drops are untouched. Loot ejected during opening is removed from the GUI before spawning, preventing duplication.
 
 ## Loot dimensions
 
