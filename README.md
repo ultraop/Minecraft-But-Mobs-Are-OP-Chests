@@ -15,11 +15,11 @@ The old ItemDisplay/resource-pack animation path is no longer used by the intera
 - No Fabric, Forge, NeoForge, Fabric API or client mod is required.
 - Only the Paper server plugin JAR is required.
 - No mob scale attribute or model replacement is applied.
-- Mob-specific vanilla renderers may interpret pitch differently. A head/front lift is not guaranteed to animate squid tentacles or every complex model part independently.
+- Mob-specific vanilla renderers may interpret head-look instructions differently. A head/front lift is not guaranteed to animate squid tentacles or every complex model part independently.
 
 ## Gameplay
 
-1. First right-click freezes a Mob at its saved position. It gives a very subtle pitch tremble, not a sit/tame animation.
+1. First right-click freezes a Mob at its saved position. It gives a very subtle head-look tremble, not a sit/tame animation.
 2. Second right-click smoothly instructs the Mob head to look almost straight upward (88 degrees by default), while its body yaw is held in place.
 3. A chest/firework sound and a small particle burst play.
 4. Up to two actual loot stacks pop upward/outward. Those stacks are removed from the GUI before spawning, preventing duplicate collection.
@@ -59,11 +59,11 @@ Loot stacks ejected at opening are removed from the GUI first, so they are not i
 
 ## Known limitations
 
-- This is a head/front pitch animation, not an actual model split with a hinged 3D lid. Paper's public entity API does not expose independent rotation controls for every model part. Squid tentacles and other complex parts need a client renderer or model/animation system to animate separately.
+- This is a head/front look animation, not an actual model split with a hinged 3D lid. Paper's public entity API does not expose independent rotation controls for every model part. Squid tentacles and other complex parts need a client renderer or model/animation system to animate separately.
 - The resource-pack-free version cannot provide custom item textures. Golden food is identified through names and metadata; Emerald Armor is green-dyed leather armor.
 - Liquid Gold fluid placement, flowing water-like behavior, two-source infinite source and the requested 10-second powers remain unimplemented. The current bucket is a named placeholder that is prevented from placing ordinary water.
 - Named artifact abilities, custom enchantment effects, Legend points and boss progression remain future work.
-- The code has passed CI compilation and static package checks, but live Paper 26.3 client tests are still required for actual head pitch, clipping, every mob renderer, inventory persistence, death drops and multiplayer behavior.
+- The code has passed CI compilation and static package checks, but live Paper 26.3 client tests are still required for actual head-look appearance, clipping, every mob renderer, inventory persistence, death drops and multiplayer behavior.
 
 ## Requirements and install
 
