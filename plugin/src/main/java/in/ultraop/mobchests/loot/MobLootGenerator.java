@@ -79,7 +79,7 @@ public final class MobLootGenerator {
         // At most one custom equipment piece per chest, never a full set.
         double gearChance = chance(plugin, "loot.custom-equipment-chance", 0.10);
         if (stacks > 0 && nextSpecialSlot < slots.size() && random.nextDouble() < gearChance) {
-            inventory.setItem(slots.get(nextSpecialSlot), customEquipment(plugin, random));
+            inventory.setItem(slots.get(nextSpecialSlot), customEquipment(plugin, random, environment));
         }
         return inventory;
     }
@@ -275,12 +275,16 @@ public final class MobLootGenerator {
     }
 
     private static ItemStack customEquipment(UltraOPMobChestsPlugin plugin,
-                                             ThreadLocalRandom random) {
+                                             ThreadLocalRandom random,
+                                             World.Environment environment) {
         String[] ids = {"skybound_boots", "aetherguard_chestplate", "phantom_leggings",
                 "stormcaller_bow", "infernal_edge", "voidwalker_helmet",
                 "emerald_helmet", "emerald_chestplate", "emerald_leggings", "emerald_boots"};
+        // Infernal Edge gets a Netherite base only inside the Nether.
+        Material infernalEdgeMaterial = environment == World.Environment.NETHER
+                ? Material.NETHERITE_SWORD : Material.DIAMOND_SWORD;
         Material[] materials = {Material.DIAMOND_BOOTS, Material.DIAMOND_CHESTPLATE,
-                Material.DIAMOND_LEGGINGS, Material.BOW, Material.NETHERITE_SWORD,
+                Material.DIAMOND_LEGGINGS, Material.BOW, infernalEdgeMaterial,
                 Material.DIAMOND_HELMET, Material.LEATHER_HELMET, Material.LEATHER_CHESTPLATE,
                 Material.LEATHER_LEGGINGS, Material.LEATHER_BOOTS};
         int index = random.nextInt(ids.length);
