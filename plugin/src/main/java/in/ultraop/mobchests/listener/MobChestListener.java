@@ -50,6 +50,7 @@ public final class MobChestListener implements Listener {
     private static final String FROZEN = "FROZEN";
     private static final String OPENING = "OPENING";
     private static final String LOOT_OPEN = "LOOT_OPEN";
+    private static final String CLOSING = "CLOSING";
     private static final String LOOTED = "LOOTED";
 
     private final UltraOPMobChestsPlugin plugin;
@@ -115,7 +116,7 @@ public final class MobChestListener implements Listener {
             beginOpening(cow, event.getPlayer());
             return;
         }
-        if (OPENING.equals(state) || LOOT_OPEN.equals(state)) {
+        if (OPENING.equals(state) || LOOT_OPEN.equals(state) || CLOSING.equals(state)) {
             event.setCancelled(true);
             event.getPlayer().sendActionBar("This mob chest is already opening.");
         }
@@ -149,7 +150,6 @@ public final class MobChestListener implements Listener {
         mob.setAI(false);
         mob.setAware(false);
         mob.setGravity(false);
-        mob.setCollidable(false);
         mob.setVelocity(new Vector(0.0, 0.0, 0.0));
         mob.setFallDistance(0.0F);
         mob.setTarget(null);
@@ -276,9 +276,9 @@ public final class MobChestListener implements Listener {
             return;
         }
 
-        // Mark used before starting the close animation: repeated clicks or
-        // duplicate close events cannot create a second inventory session.
-        setState(cow, LOOTED);
+        // Closing is a terminal one-shot state. Repeated clicks are blocked
+        // until the lid finishes closing and the real mob is restored.
+        setState(cow, CLOSING);
         openers.remove(mobId);
         stopTask(openTasks.remove(mobId));
 
@@ -289,18 +289,20 @@ public final class MobChestListener implements Listener {
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
                 animator.remove(animations.remove(mobId));
                 activeMobs.remove(mobId);
+                setState(cow, LOOTED);
                 restoreNormalState(cow);
             }, 8L);
         } else {
             animator.remove(animations.remove(mobId));
             activeMobs.remove(mobId);
+            setState(cow, LOOTED);
             restoreNormalState(cow);
         }
     }
 
     private void consumeAndRestore(Cow cow, boolean animateClose) {
         finishSession(cow.getUniqueId(), animateClose);
-        if (OPENING.equals(getState(cow)) || LOOT_OPEN.equals(getState(cow))) {
+        if (OPENING.equals(getState(cow)) || LOOT_OPEN.equals(getState(cow)) || CLOSING.equals(getState(cow))) {
             setState(cow, LOOTED);
             animator.remove(animations.remove(cow.getUniqueId()));
             activeMobs.remove(cow.getUniqueId());
@@ -381,7 +383,7 @@ public final class MobChestListener implements Listener {
     public void protectOpeningCow(EntityDamageEvent event) {
         if (event.getEntity() instanceof Cow cow) {
             String state = getState(cow);
-            if (OPENING.equals(state) || LOOT_OPEN.equals(state)) {
+            if (OPENING.equals(state) || LOOT_OPEN.equals(state) || CLOSING.equals(state)) {
                 event.setCancelled(true);
             }
         }
@@ -437,7 +439,7 @@ public final class MobChestListener implements Listener {
             if (FROZEN.equals(state)) {
                 applyFrozenState(cow);
                 startFreezeEnforcer(cow);
-            } else if (OPENING.equals(state) || LOOT_OPEN.equals(state)) {
+            } else if (OPENING.equals(state) || LOOT_OPEN.equals(state) || CLOSING.equals(state)) {
                 // A server crash/restart cannot leave a hidden or permanently
                 // half-open Cow. The one-time attempt is consumed safely.
                 setState(cow, LOOTED);
