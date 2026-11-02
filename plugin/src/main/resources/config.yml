@@ -1,0 +1,4 @@
+# Initial plugin settings for Paper 26.3
+settings:
+  debug: false
+  language: en
