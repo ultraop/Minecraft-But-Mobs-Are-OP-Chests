@@ -9,7 +9,7 @@ Root: `/mobchests` (alias: `/mobchest`).
 | /mobchests info | Everyone | One combined version/build/platform/feature info panel |
 | /mobchests help | Everyone | Grouped command guide |
 | /mobchests status | Everyone | Runtime and scaffold status |
-| /mobchests reload | ultraopmobchests.admin | Reload configuration and messages |
+| /mobchests reload | mobchests.admin | Reload configuration and messages |
 
 ## Planned commands
 
