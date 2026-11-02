@@ -1,25 +1,38 @@
-# UltraOP Mob Chests — initial configuration
-# Target: Paper 26.3 | Java 25
+# UltraOP Mob Chests — Paper 26.3 | Java 25
+# This build exposes the adult-Cow animation prototype only.
 
 settings:
   language: en
   debug: false
-  check-updates: false
 
-resource-pack:
-  required: false
+prototype:
+  enabled: true
+  entity-type: COW
+  adults-only: true
+  open-animation-ticks: 10
+  close-animation-ticks: 8
 
 interaction:
-  freeze-on-first-right-click: true
-  open-on-second-right-click: true
-  one-opening-session-per-mob: true
-  restore-normal-ai-after-looting: true
-  preserve-vanilla-drops-and-xp: true
+  first-right-click-freezes: true
+  second-right-click-opens: true
+  one-inventory-session-per-entity: true
+  close-without-taking-consumes-chest: true
+  restore-original-mob-state-on-close: true
+  preserve-vanilla-drops-and-xp-after-looting: true
 
+loot-prototype:
+  minimum-item-stacks: 4
+  maximum-item-stacks: 8
+  variable-stack-amounts: true
+
+resource-pack:
+  required-for-cow-model: true
+  minecraft-version: "26.3"
+  resource-pack-format: "97.1"
+
+# The following systems are future modules; their values are design defaults only.
 loot:
   custom-equipment-chance: 0.10
-  minimum-slots: 0
-  maximum-slots: 15
   prevent-full-armor-set-per-chest: true
   persist-result-per-entity: true
 
@@ -30,18 +43,3 @@ rarity:
   epic: 2.0
   legendary: 0.8
   mythic: 0.2
-
-progression:
-  enabled: true
-  unique-discoveries-only: true
-  categories:
-    overworld: true
-    ocean: true
-    nether: true
-    end: true
-
-bosses:
-  wither: true
-  elder-guardian: true
-  warden: true
-  ender-dragon: true
