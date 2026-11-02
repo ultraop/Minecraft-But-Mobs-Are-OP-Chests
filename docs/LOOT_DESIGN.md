@@ -2,9 +2,23 @@
 
 ## Implemented generator
 
-The Paper plugin contains mob-family common pools for passive, undead, skeleton, spider, creeper, Nether, aquatic, End and boss families. Only adult Cows and Creepers currently expose the two-click visual interaction.
+The Paper plugin creates variable 5–9 base stacks by default, with variable stack sizes and configurable weighted rarity. Each Mob family has a themed common pool. General utility items are mixed in so different mobs can contain paper, compass, maps, clocks, books, arrows, metals, crafting resources and other practical supplies.
 
-Each chest rolls a variable 4–8 occupied stacks by default. Rarity weights are configurable and normalized:
+## Dimension-aware progression
+
+The loot generator receives the Mob's current world environment.
+
+| Dimension | Progression examples |
+|---|---|
+| Overworld | Obsidian, flint and steel, iron, paper, compass, map and clock |
+| Nether | Quartz, glowstone dust, blaze rods, gold, magma cream, Nether bricks, with ancient debris and Netherite scrap/ingot in rare pools |
+| End | Ender pearls, chorus fruit, purpur, shulker shells and Dragon-related rare materials |
+
+Netherite progression loot is limited to the Nether environment. Overworld and End pools do not include Netherite scrap/ancient debris/ingots.
+
+## Rarity
+
+Default weights are configurable and normalized:
 
 | Rarity | Default weight |
 |---|---:|
@@ -15,28 +29,26 @@ Each chest rolls a variable 4–8 occupied stacks by default. Rarity weights are
 | Legendary | 0.8 |
 | Mythic | 0.2 |
 
-Boss mobs get a modest rarity bias, never a guaranteed named reward.
+Boss mobs receive a small rarity bias only. No named item is guaranteed.
 
-## Rare custom rewards
+## Custom rewards
 
-- Golden Potato, Golden Porkchop and Golden Bread: 6% default special-food chance per chest.
-- Liquid Gold Bucket placeholder: 7% default chance per chest, configurable between 0 and 100%.
-- Custom equipment: 10% default chance, at most one piece per chest.
-- Emerald Armor is currently a single randomly selected green-dyed leather armor piece, not a complete set.
-- Other custom IDs include Skybound Boots, Aetherguard Chestplate, Phantom Leggings, Stormcaller Bow, Infernal Edge, Voidwalker Helmet, Skull Scepter, Abyssal Heart, Warden Echo Relic, Dragon Wing Plate and Dragon Blast.
-- Custom enchantment tome metadata uses independent ranks 30–60; these are not vanilla enchantment levels.
+- Golden Potato, Golden Porkchop and Golden Bread use vanilla base items with custom names and metadata; custom item textures are not part of this no-resource-pack build.
+- Emerald Armor currently uses a single green-dyed leather armor piece.
+- Liquid Gold Bucket is a non-water placeholder item. Its fluid system and ten-second abilities are not implemented.
+- Custom equipment is limited to one equipment reward per chest.
+- Custom tome metadata stores ranks 30–60 separately from vanilla enchantment levels.
+- Other named artifacts remain item-ID foundations until their abilities are implemented.
 
-A chest opening also ejects one or two real reward stacks into the world. Ejected stacks are cleared from the GUI inventory before spawning, so the same stack cannot be collected twice. Remaining stacks stay in the one-time GUI.
+## Burst and death-drop rule
 
-## Liquid Gold implementation status
+At chest opening, one or two actual loot stacks are removed from the GUI inventory before being launched into the world. The remaining GUI contents are serialized into the Mob's PersistentDataContainer and refreshed as inventory clicks, drags and closing occur.
 
-The current Liquid Gold Bucket is a custom item placeholder with its own texture and PDC fluid ID. It intentionally uses an ordinary empty-bucket base item until the custom-fluid interaction is implemented, so it cannot accidentally place normal water.
+After a Mob's chest has been used, killing that Mob clears vanilla item drops and XP and drops only the saved remaining chest contents. If the chest was never opened, ordinary vanilla mob drops remain. The ejected stacks are not duplicated in the saved inventory.
 
-Still required: a gold-coloured water-like fluid renderer/simulation, bucket placement and scooping, flow updates, two-source infinite-source behaviour, and the requested 10-second abilities. The exact ability list must be based on the effect screenshot.
+## Remaining work
 
-## Remaining loot work
-
-- Crash-safe serialization of the generated inventory and ejected-item delivery.
-- Complete per-mob balance and data-pack-driven overrides.
-- Functional item abilities and cooldowns.
-- Functional custom enchantment effects.
+- Real server crash and multiplayer stress tests around inventory checkpointing.
+- More fine-grained per-Mob and biome balancing.
+- Functional Liquid Gold fluid flow/infinite source and requested ten-second abilities.
+- Custom item abilities, custom enchantment effects, Legend points and boss progression.
