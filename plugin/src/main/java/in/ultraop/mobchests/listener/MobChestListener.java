@@ -47,9 +47,9 @@ import java.util.concurrent.ThreadLocalRandom;
  * Resource-pack-free living mob chest interaction.
  *
  * The real entity remains visible and keeps its vanilla dimensions. Paper's
- * entity pitch is used for the lid-like head/front lift, while body yaw is
- * held at its original value. Mob-specific renderers may interpret pitch
- * differently; no client model or scale replacement is performed.
+ * Mob.lookAt head controller raises the vanilla head/front while body yaw is
+ * held at its original value. Mobs without a separately controlled head may
+ * not show an independent lid pose; no client model or scale replacement is used.
  *
  * State: NORMAL -> FROZEN -> OPENING -> LOOT_OPEN -> CLOSING -> LOOTED.
  * Loot contents are saved on the mob itself and become its death drops after
@@ -207,7 +207,7 @@ public final class MobChestListener implements Listener {
             int interval = Math.max(2,
                     plugin.getConfig().getInt("freeze.tremble-interval-ticks", 8));
             float amplitude = (float) Math.max(0.0, Math.min(2.0,
-                    plugin.getConfig().getDouble("freeze.tremble-pitch-degrees", 0.8)));
+                    plugin.getConfig().getDouble("freeze.tremble-head-degrees", 0.8)));
             float tremble = 0.0F;
             if (plugin.getConfig().getBoolean("freeze.subtle-tremble-enabled", true)) {
                 tremble = ticks[0] % interval < Math.max(1, interval / 2)
