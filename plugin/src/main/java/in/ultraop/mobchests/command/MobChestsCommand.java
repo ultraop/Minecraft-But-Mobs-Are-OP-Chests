@@ -72,7 +72,7 @@ public final class MobChestsCommand implements CommandExecutor, TabCompleter {
     }
 
     private void reload(CommandSender sender) {
-        if (!sender.hasPermission("ultraopmobchests.admin")) {
+        if (!sender.hasPermission("mobchests.admin")) {
             sender.sendMessage(ChatColor.RED + "You do not have permission.");
             return;
         }
