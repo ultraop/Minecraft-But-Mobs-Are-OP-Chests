@@ -2,7 +2,11 @@
 
 ## Implemented generator
 
-The Paper plugin creates variable 5–9 base stacks by default, with variable stack sizes and configurable weighted rarity. Each Mob family has a themed common pool. General utility items are mixed in so different mobs can contain paper, compass, maps, clocks, books, arrows, metals, crafting resources and other practical supplies.
+The Paper plugin creates variable 14–18 base stacks by default, with variable stack sizes and configurable weighted rarity. Each Mob family has a themed common pool. General utility items are mixed in so different mobs can contain paper, compass, maps, clocks, books, arrows, metals, crafting resources and other practical supplies.
+
+## Loot quantity and burst
+
+Each new chest rolls 14–18 base occupied stacks plus any special reward rolls. The opening burst ejects half of all occupied stacks (rounded up), with stronger outward/upward velocity. Those stacks are removed from the GUI before they are dropped. The other half remains in the GUI.
 
 ## Dimension-aware progression
 
@@ -35,14 +39,14 @@ Boss mobs receive a small rarity bias only. No named item is guaranteed.
 
 - Golden Potato, Golden Porkchop and Golden Bread use vanilla base items with custom names and metadata; custom item textures are not part of this no-resource-pack build.
 - Emerald Armor currently uses a single green-dyed leather armor piece.
-- Liquid Gold Bucket is a non-water placeholder item. Its fluid system and ten-second abilities are not implemented.
+- Liquid Gold Bucket is a sealed placeholder with an orange-filled vanilla bucket icon. Its fluid system and ten-second abilities are not implemented.
 - Custom equipment is limited to one equipment reward per chest.
 - Custom tome metadata stores ranks 30–60 separately from vanilla enchantment levels.
 - Other named artifacts remain item-ID foundations until their abilities are implemented.
 
 ## Burst and death-drop rule
 
-At chest opening, one or two actual loot stacks are removed from the GUI inventory before being launched into the world. The remaining GUI contents are serialized into the Mob's PersistentDataContainer and refreshed as inventory clicks, drags and closing occur.
+At chest opening, 50% of the generated item stacks are removed from the GUI inventory before being launched outward into the world. The remaining GUI contents are serialized into the Mob's PersistentDataContainer and refreshed as inventory clicks, drags and closing occur.
 
 After a Mob's chest has been used, killing that Mob clears vanilla item drops and XP and drops only the saved remaining chest contents. If the chest was never opened, ordinary vanilla mob drops remain. The ejected stacks are not duplicated in the saved inventory.
 
