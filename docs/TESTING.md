@@ -25,7 +25,7 @@
 - [ ] End pools include Ender and Shulker progression supplies.
 - [ ] Loot burst stacks are removed from the GUI before dropping in the world.
 - [ ] Inventory click/shift-click/drag/close saves remaining GUI contents.
-- [ ] Kill a chest-used mob: only remaining chest contents drop, with no vanilla mob items and no vanilla death XP.
+- [ ] Kill a chest-used mob: only remaining chest contents drop, with no vanilla mob item drops, while normal XP remains.
 - [ ] Kill a mob whose chest was never opened: normal vanilla drops/XP remain.
 - [ ] Kill after taking all items: no chest items drop.
 - [ ] Restart/chunk unload/disconnect does not duplicate stored items.
