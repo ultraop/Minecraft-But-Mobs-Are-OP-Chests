@@ -12,7 +12,7 @@ commands:
     aliases: [mobchest]
     permission: mobchests.use
 permissions:
-  ultraopmobchests.use:
+  mobchests.use:
     description: Allows access to public Mob Chests commands.
     default: true
   mobchests.admin:
