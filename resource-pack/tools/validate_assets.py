@@ -50,7 +50,7 @@ def main() -> None:
 
     for source_path in JAVA_SOURCES:
         source = source_path.read_text(encoding="utf-8")
-        match = re.search(r'RESOURCE_NAMESPACE\\s*=\\s*"([^"]+)"', source)
+        match = re.search(r'RESOURCE_NAMESPACE\s*=\s*"([^"]+)"', source)
         if not match or match.group(1) != NAMESPACE:
             raise SystemExit(f"{source_path.name} namespace does not match the resource pack.")
 
