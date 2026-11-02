@@ -646,7 +646,7 @@ public final class MobChestListener implements Listener {
         // Once the chest has been used, it replaces rather than duplicates
         // the mob's native drops and XP.
         event.getDrops().clear();
-        event.setDroppedExp(0);
+        // Keep normal vanilla experience; only item drops are replaced.
 
         byte[] stored = mob.getPersistentDataContainer().get(
                 chestLootKey, PersistentDataType.BYTE_ARRAY);
