@@ -7,6 +7,8 @@ import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
+import org.bukkit.Registry;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.entity.Creeper;
@@ -138,6 +140,63 @@ public final class MobChestListener implements Listener {
             event.getPlayer().sendActionBar("This mob chest is already opening.");
         }
         // LOOTED mobs use their normal vanilla interaction again.
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void handleSpecialRewardUse(PlayerInteractEvent event) {
+        if (event.getHand() != org.bukkit.inventory.EquipmentSlot.HAND) return;
+        if (event.getAction() != org.bukkit.event.block.Action.RIGHT_CLICK_AIR
+                && event.getAction() != org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK) return;
+
+        Player player = event.getPlayer();
+        ItemStack held = player.getInventory().getItemInMainHand();
+        if (held == null || held.getType().isAir() || !held.hasItemMeta()) return;
+
+        PersistentDataContainer itemData = held.getItemMeta().getPersistentDataContainer();
+        String fluidId = itemData.get(
+                new NamespacedKey(plugin, "custom_fluid_id"), PersistentDataType.STRING);
+        if ("liquid_gold".equals(fluidId)) {
+            event.setCancelled(true);
+            player.sendActionBar("Liquid Gold is sealed in this build; it cannot place ordinary lava.");
+            return;
+        }
+
+        String enchantmentId = itemData.get(
+                new NamespacedKey(plugin, "custom_enchantment_id"), PersistentDataType.STRING);
+        if (enchantmentId == null) return;
+
+        event.setCancelled(true);
+        Integer savedRank = itemData.get(
+                new NamespacedKey(plugin, "custom_enchantment_rank"), PersistentDataType.INTEGER);
+        int rank = savedRank == null ? 30 : Math.max(1, Math.min(255, savedRank));
+        Enchantment enchantment = Registry.ENCHANTMENT.get(NamespacedKey.minecraft(enchantmentId));
+        if (enchantment == null) {
+            player.sendMessage("§cThis enchantment is not available on this server version.");
+            return;
+        }
+
+        ItemStack target = player.getInventory().getItemInOffHand();
+        if (target == null || target.getType().isAir()) {
+            player.sendMessage("§eHold compatible gear in your off-hand, then right-click with the book.");
+            return;
+        }
+        if (!enchantment.canEnchantItem(target)) {
+            player.sendMessage("§c" + enchantmentId.replace('_', ' ')
+                    + " cannot be applied to " + target.getType().name().toLowerCase().replace('_', ' ') + ".");
+            return;
+        }
+
+        target.addUnsafeEnchantment(enchantment, rank);
+        player.getInventory().setItemInOffHand(target);
+
+        ItemStack book = player.getInventory().getItemInMainHand();
+        if (book.getAmount() <= 1) {
+            player.getInventory().setItemInMainHand(new ItemStack(org.bukkit.Material.AIR));
+        } else {
+            book.setAmount(book.getAmount() - 1);
+        }
+        player.sendMessage("§aApplied " + enchantmentId.replace('_', ' ')
+                + " level " + rank + " to " + target.getType().name().toLowerCase().replace('_', ' ') + ".");
     }
 
     private void freeze(Mob mob, Player player) {
