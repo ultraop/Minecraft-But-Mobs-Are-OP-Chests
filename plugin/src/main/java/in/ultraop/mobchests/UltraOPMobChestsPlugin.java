@@ -5,6 +5,7 @@ import in.ultraop.mobchests.config.MessageService;
 import in.ultraop.mobchests.config.PluginSettings;
 import in.ultraop.mobchests.listener.MobChestListener;
 import in.ultraop.mobchests.fluid.LiquidGoldService;
+import in.ultraop.mobchests.items.CustomItemsMenu;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.event.HandlerList;
@@ -14,6 +15,7 @@ public final class UltraOPMobChestsPlugin extends JavaPlugin {
     private MessageService messages;
     private MobChestListener mobChestListener;
     private LiquidGoldService liquidGoldService;
+    private CustomItemsMenu customItemsMenu;
 
     @Override
     public void onEnable() {
@@ -24,7 +26,10 @@ public final class UltraOPMobChestsPlugin extends JavaPlugin {
         settings.reload();
         messages.reload();
 
-        MobChestsCommand executor = new MobChestsCommand(this);
+        customItemsMenu = new CustomItemsMenu(this);
+        getServer().getPluginManager().registerEvents(customItemsMenu, this);
+
+        MobChestsCommand executor = new MobChestsCommand(this, customItemsMenu);
         PluginCommand command = getCommand("mobchests");
         if (command == null) {
             getLogger().severe("Missing mobchests command in plugin.yml; disabling.");
