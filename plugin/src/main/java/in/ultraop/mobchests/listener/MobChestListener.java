@@ -194,9 +194,8 @@ public final class MobChestListener implements Listener {
 
         Integer storedRank = itemData.get(
                 new NamespacedKey(plugin, "custom_enchantment_rank"), PersistentDataType.INTEGER);
-        int rank = storedRank == null ? 8 : Math.max(1, Math.min(15, storedRank));
-        // Mending has no useful scaling beyond vanilla level I.
-        if ("mending".equals(enchantmentId)) rank = 1;
+        int rank = storedRank == null ? 8
+                : Math.max(1, Math.min(safeMaximumCustomLevel(enchantmentId), storedRank));
 
         // Normalise legacy and current custom books on use. Custom ranks live
         // in PDC only; remove any old Vanilla StoredEnchantments and replace
@@ -273,6 +272,25 @@ public final class MobChestListener implements Listener {
         player.sendMessage("§aApplied " + titleEnchantment(enchantmentId)
                 + " " + rank + " to " + target.getType().name().toLowerCase().replace('_', ' ') + ".");
         player.playSound(player.getLocation(), Sound.BLOCK_ENCHANTMENT_TABLE_USE, 0.7F, 1.35F);
+    }
+
+    private int safeMaximumCustomLevel(String enchantmentId) {
+        return switch (enchantmentId) {
+            case "sharpness", "smite", "bane_of_arthropods", "power" -> 12;
+            case "protection", "feather_falling" -> 8;
+            case "blast_protection", "fire_protection", "projectile_protection" -> 7;
+            case "efficiency" -> 10;
+            case "unbreaking" -> 9;
+            case "fortune", "looting", "respiration", "sweeping_edge" -> 6;
+            case "fire_aspect", "knockback" -> 4;
+            case "depth_strider", "thorns", "soul_speed", "swift_sneak" -> 5;
+            case "quick_charge" -> 5;
+            case "piercing" -> 6;
+            case "impaling" -> 8;
+            case "loyalty", "riptide" -> 5;
+            // Mending and unknown legacy ids have no useful high-level scaling.
+            default -> 1;
+        };
     }
 
     private boolean supportsTarget(String enchantmentId, ItemStack item) {
