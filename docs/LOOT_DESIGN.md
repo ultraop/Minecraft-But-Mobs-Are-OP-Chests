@@ -2,9 +2,9 @@
 
 ## Loot quantity and variety
 
-Each chest rolls 14–18 base occupied stacks plus separate special rewards. Quantities vary by material stack size. Pools combine Mob-family loot with broad survival supplies: dirt, stone, gravel, sand, stone variants, deepslate, blocks, dyes, bones, bone meal, ink sacs, crops, metals, books, signed written books, potions, chains, lanterns, utility items and smithing templates.
+Each chest rolls 14–18 base occupied stacks plus separate special rewards. Quantities vary by material stack size. Pools combine Mob-family loot with broad survival supplies: dirt, stone, gravel, sand, stone variants, deepslate, blocks, dyes, bones, bone meal, ink sacs, crops, metals, books, signed written books, potions, chains, lanterns, utility items and smithing templates. Common loot can include wooden/stone starter tools, fishing rods, shears, flint and steel, shields and compasses. Uncommon loot adds iron tools, crossbows, spyglasses, brushes, goat horns, recovery compasses and normal Enchanted Books.
 
-Maps are only added to explorer/trader-type Mob pools. Compasses remain uncommon rather than being inserted into every Mob's common pool. Creative/admin-only items, spawn eggs and restricted utility blocks are filtered from random material selection.
+Maps are only added to explorer/trader-type Mob pools. Compasses can appear in common and uncommon utility loot rather than being forced into every chest. Creative/admin-only items, spawn eggs and restricted utility blocks are filtered from random material selection.
 
 ## Dimension-aware progression
 
