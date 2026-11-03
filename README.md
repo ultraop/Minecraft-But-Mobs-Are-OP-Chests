@@ -1,69 +1,85 @@
-# UltraOP — Mobs Are OP Chests
+# Mob Chests — Mobs Are OP Chests
 
-**Paper 26.3 plugin | Java 25 | No resource pack or client mod required**
+**Paper 26.3 plugin | Java 25 | No client mod, resource pack or datapack required**
 
-![Minecraft](https://img.shields.io/badge/Minecraft-26.3-brightgreen)
-![Platform](https://img.shields.io/badge/Platform-Paper-blue)
-![Java](https://img.shields.io/badge/Java-25-orange)
-![Visuals](https://img.shields.io/badge/Visuals-Vanilla%20entity%20pose-blue)
+## Current mob animation
 
-## Current approach
+The old ItemDisplay/resource-pack model path is retired. The original vanilla Mob stays visible and keeps its normal dimensions. During the chest animation the plugin disables AI and applies a controlled entity pitch with `Entity.setRotation(yaw, pitch)`, while holding the body yaw at its saved value. This prevents the Mob's normal look goals from fighting the pose and repeatedly turning the head up and down.
 
-The old ItemDisplay/resource-pack animation path is no longer used by the interaction code. This build keeps the real vanilla mob visible at its normal size and uses Paper's Mob.lookAt head controller to raise the vanilla head/front while holding body yaw steady. It does not rotate or scale a replacement model.
+- First right-click: freezes the Mob in place with a subtle pitch tremble.
+- Second right-click: smoothly raises the vanilla pitch to approximately -88 degrees.
+- While the GUI is open: the open pitch is held steady.
+- Closing the GUI: pitch, AI, awareness, gravity, collision and the saved rotation are restored.
+- The Mob keeps its original width, height, hitbox and vanilla texture.
 
-- No .minecraft/resourcepacks installation is required.
-- No Fabric, Forge, NeoForge, Fabric API or client mod is required.
-- Only the Paper server plugin JAR is required.
-- No mob scale attribute or model replacement is applied.
-- Mob-specific vanilla renderers may interpret head-look instructions differently. A head/front lift is not guaranteed to animate squid tentacles or every complex model part independently.
+This is a vanilla pitch pose, not a true split-body chest hinge. Different Mob renderers may interpret pitch differently; Paper's public API does not expose independent rotation for every head, abdomen, leg or squid tentacle.
 
-## Gameplay
+## Chest and loot behaviour
 
-1. First right-click freezes a Mob at its saved position. It gives a very subtle head-look tremble, not a sit/tame animation.
-2. Second right-click smoothly instructs the Mob head to look almost straight upward (88 degrees by default), while its body yaw is held in place.
-3. A chest/firework sound and a small particle burst play.
-4. 50% of the generated item stacks pop outward in a stronger radial burst. Those stacks are removed from the GUI before spawning, preventing duplicate collection.
-5. The remaining items are shown in a one-time inventory. Closing after taking all, some or none consumes the chest.
-6. The vanilla pose returns to its original rotation and the mob's saved AI/awareness/gravity/collision settings are restored.
-7. The mob can then behave and be killed normally. If the chest was used, its remaining saved chest contents replace vanilla mob drops and XP. If its chest was never opened, normal vanilla drops remain.
+- One chest session per Mob. Closing it after taking all, some or none of the contents permanently consumes that chest.
+- Each chest generates 14–18 base occupied stacks, plus any separate special rewards. Stack quantities vary.
+- Half of the occupied stacks (rounded up) are removed from the GUI and launched outward/upward. Horizontal velocity is intentionally low to keep the items within roughly 3–4 blocks of the Mob.
+- The other half stays in the GUI. Ejected items are removed before spawning, so they cannot be duplicated.
+- On a used Mob's death, normal vanilla item drops are replaced by the remaining saved chest contents. Normal vanilla XP remains. If the chest was never opened, normal vanilla drops and XP are preserved.
 
-## Mob coverage
+## Loot variety
 
-By default, all Bukkit Mob entity types are enabled. Set prototype.support-all-mobs: false and list prototype.supported-entities in plugins/UltraOPMobChests/config.yml to restrict them. Add entity names to prototype.excluded-entities to exclude special cases.
+Common pools now mix family-specific loot with broad survival items:
 
-The visual method is intentionally generic and resource-pack-free. It uses Paper's Mob.lookAt head-rotation control; it does not replace the Mob model or change its dimensions. Most mobs with a vanilla head-look controller can raise their head/front. Squid tentacles and other independent model parts cannot be animated by this API and need a custom renderer for exact part-by-part animation.
+- Blocks and stone: stone, dirt, gravel, sand, granite, diorite, andesite, tuff, calcite, deepslate, cobbled deepslate, moss, mud, glass and dimension-themed blocks.
+- Materials: bones, bone meal, ink sacs, glow ink sacs, all dye colours, feathers, string, leather, metals, coal, redstone, lapis, seeds and crops.
+- Utility/decor: paper, clocks, books, chains, lanterns, candles, barrels, chests, name tags, leads, saddles and item frames.
+- Signed written books with short explorer notes.
+- Potions, splash potions and lingering potions from a safe set of vanilla potion types.
+- Normal vanilla Enchanted Books with valid vanilla levels; these remain usable in an anvil.
+- Smithing templates and armour trims appear in uncommon pools.
+- Maps are limited to explorer/trader-type Mob pools, not added to every Mob.
 
-## Loot
+Dimension progression remains separate:
+- Overworld: obsidian, flint and steel, iron and building/navigation supplies.
+- Nether: quartz, blaze rods, gold and rare ancient debris/Netherite scrap/ingot.
+- End: End-related and Shulker progression supplies.
 
-- Variable 14–18 base item stacks per chest (plus special rewards), with larger stack quantities.
-- Mob-family drops and broad utility loot such as paper, compass, map, clock, book, arrows, metals and crafting materials.
-- Dimension-aware progression rewards:
-  - Overworld: obsidian, flint and steel, iron and navigation supplies.
-  - Nether: quartz, blaze rods, gold, ancient debris and Netherite scrap/ingot in rare pools.
-  - End: Ender-related materials, shulker shells, chorus and Dragon-related rare items.
-- Rare Golden Potato, Golden Porkchop and Golden Bread names/IDs.
-- Green-dyed Emerald Armor pieces, one equipment piece maximum per chest.
-- Liquid Gold Bucket reward with a 35% test-build drop chance; its icon uses a vanilla orange-filled bucket.
-- Custom enchantment tome rank metadata from 30–60, separate from vanilla levels.
+Netherite progression rewards are only selected in the Nether pool. Creative/admin-only items such as command blocks, barrier, bedrock, debug stick, knowledge book, spawners and spawn eggs are filtered out of random loot.
 
-Without a resource pack, golden foods use vanilla item artwork with their custom names/lore; custom item textures are not supplied by this build.
+## Custom Enchantment Books
 
-## Chest loot on mob death
+Custom Ancient Enchanted Books use a plugin-applied enchantment ID and a bounded level. They do not store unsafe level 30–60 enchantments in Vanilla EnchantmentStorageMeta; this prevents the client tooltip from showing strings such as `enchantment.level.46`.
 
-The live GUI contents are serialized onto the mob using Paper's ItemStack byte serialization. Inventory click/drag and close events refresh that saved snapshot. After a chest has been used:
-- vanilla mob item drops are cleared;
-- vanilla XP is preserved;
-- only the remaining serialized chest contents are dropped naturally.
+**How to apply:** hold the Ancient Enchanted Book in the main hand, put the compatible item in the off-hand, then right-click. The plugin cancels the off-hand's normal equip/use action while the book is being used, checks compatibility and conflicts, applies the enchantment and consumes the book only on success.
 
-Loot stacks ejected at opening are removed from the GUI first, so they are not included in the saved remainder. A chest that was never opened keeps normal vanilla death drops.
+Custom ranges are intentionally stronger than vanilla but bounded:
 
-## Known limitations
+| Enchantment | Custom level range | Compatible gear |
+|---|---:|---|
+| Sharpness, Smite, Bane of Arthropods | 8–12 | Sword / compatible weapon |
+| Power | 8–12 | Bow |
+| Protection | 6–8 | Armour |
+| Blast, Fire, Projectile Protection | 5–7 | Armour |
+| Efficiency | 8–10 | Tools |
+| Unbreaking | 6–9 | Compatible gear |
+| Fortune, Looting | 4–6 | Compatible tool / sword |
+| Feather Falling | 6–8 | Boots |
+| Respiration | 4–6 | Helmet |
+| Sweeping Edge | 4–6 | Sword |
+| Fire Aspect | 2–4 | Sword |
+| Knockback | 2–4 | Sword |
+| Depth Strider, Soul Speed | 4–5 | Boots |
+| Swift Sneak | 4–5 | Leggings |
+| Thorns | 4–5 | Armour |
+| Quick Charge, Piercing | 3–6 | Crossbow |
+| Impaling, Loyalty, Riptide | 3–8 | Trident |
 
-- This is a head/front look animation, not an actual model split with a hinged 3D lid. Paper's public entity API does not expose independent rotation controls for every model part. Squid tentacles and other complex parts need a client renderer or model/animation system to animate separately.
-- The resource-pack-free version cannot provide custom item textures. Golden food is identified through names and metadata; Emerald Armor is green-dyed leather armor.
-- Liquid Gold fluid placement, flowing water-like behavior, two-source infinite source and the requested 10-second powers remain unimplemented. The current bucket is a named placeholder that is prevented from placing ordinary water.
-- Named artifact abilities, custom enchantment effects, Legend points and boss progression remain future work.
-- The code has passed CI compilation and static package checks, but live Paper 26.3 client tests are still required for actual head-look appearance, clipping, every mob renderer, inventory persistence, death drops and multiplayer behavior.
+The compatibility check means, for example, Respiration will only apply to a helmet and Feather Falling only to boots. Conflicting enchantments are rejected. Mending and other non-scaling level-I enchantments remain available as ordinary vanilla Enchanted Books instead of being given meaningless high levels.
+
+## Special rewards and known limits
+
+- Golden Potato, Golden Porkchop and Golden Bread are custom-named vanilla items.
+- Emerald Armor is a single green-dyed leather armour piece, not a complete set.
+- Liquid Gold Bucket has a 35% test-build chance and a sealed vanilla bucket icon. The actual flowing gold fluid, bucket placement/scooping, infinite-source behaviour and ten-second abilities are not implemented yet; its right-click is blocked so it cannot place ordinary lava.
+- Named relics and equipment are loot foundations. Their individual powers, custom enchantment effects beyond the listed vanilla enchantments, Legend points and boss progression are future work.
+- The no-resource-pack build cannot provide custom mob or item textures.
+- Independent squid tentacle/body-bone animation still requires a client renderer or custom model system.
 
 ## Requirements and install
 
@@ -73,16 +89,14 @@ Loot stacks ejected at opening are removed from the GUI first, so they are not i
 | Server | Paper 26.3 |
 | Java | 25 |
 | Client gameplay mod | Not required |
-| Resource pack | Not required |
-| Datapack | Not required |
+| Resource pack / datapack | Not required |
 
-1. Put the JAR in the Paper server's plugins/ folder.
-2. Disable/remove the old UltraOP Mob Chests resource pack from the client; this build does not use it.
-3. Remove the old UltraOP Mob Chests datapack ZIP from the world's datapacks folder; this build does not use it.
+1. Stop the Paper server.
+2. Replace the old plugin JAR in `plugins/` with the new JAR.
+3. Remove any old custom Mob Chests resource pack or datapack from previous builds; this version does not use them.
 4. Start Paper 26.3 with Java 25.
-5. Run /mobchests info and /mobchests status.
-6. First right-click a mob to freeze it; second right-click opens the pose and loot GUI.
-7. Close the GUI, then kill the mob to verify that only the remaining chest items drop.
+5. The new config folder is `plugins/MobChests/`.
+6. Use `/mobchests info`, `/mobchests status` and `/mobchests reload`.
 
 ## Build
 
@@ -90,20 +104,21 @@ Loot stacks ejected at opening are removed from the GUI first, so they are not i
 gradle clean build
 ~~~
 
-Windows:
-
-~~~powershell
-gradle.bat clean build
-~~~
-
 ## Commands
 
 | Command | Permission | Purpose |
 |---|---|---|
-| /mobchests info | Everyone | Version and implemented-scope information |
-| /mobchests help | Everyone | Command guide |
-| /mobchests status | Everyone | Runtime and prototype status |
-| /mobchests reload | mobchests.admin | Reload configuration |
+| `/mobchests info` | Everyone | Version and creator information |
+| `/mobchests help` | Everyone | Command guide |
+| `/mobchests status` | Everyone | Runtime and feature status |
+| `/mobchests reload` | `mobchests.admin` | Reload configuration |
+
+## Further documentation
+
+- [Architecture](docs/ARCHITECTURE.md)
+- [Loot design](docs/LOOT_DESIGN.md)
+- [Enchantment books](docs/ENCHANTMENT_BOOKS.md)
+- [Testing checklist](docs/TESTING.md)
 
 ## License
 

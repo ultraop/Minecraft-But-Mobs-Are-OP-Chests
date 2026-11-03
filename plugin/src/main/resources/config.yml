@@ -47,6 +47,6 @@ rarity:
   legendary: 0.8
   mythic: 0.2
 
-# All chest visuals use the real vanilla mob model and Mob.lookAt head control.
-# No resource pack or client renderer is used. Squid tentacles cannot be
-# rotated independently by the generic Paper Mob API.
+# All chest visuals use the real vanilla Mob and a fixed entity pitch with AI disabled.
+# No resource pack or client renderer is used. Independent squid tentacle/body-bone
+# animation requires a custom renderer.

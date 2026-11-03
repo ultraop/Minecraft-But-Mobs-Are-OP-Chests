@@ -1,28 +1,24 @@
 # Loot Design
 
-## Implemented generator
+## Loot quantity and variety
 
-The Paper plugin creates variable 14–18 base stacks by default, with variable stack sizes and configurable weighted rarity. Each Mob family has a themed common pool. General utility items are mixed in so different mobs can contain paper, compass, maps, clocks, books, arrows, metals, crafting resources and other practical supplies.
+Each chest rolls 14–18 base occupied stacks plus separate special rewards. Quantities vary by material stack size. Pools combine Mob-family loot with broad survival supplies: dirt, stone, gravel, sand, stone variants, deepslate, blocks, dyes, bones, bone meal, ink sacs, crops, metals, books, signed written books, potions, chains, lanterns, utility items and smithing templates.
 
-## Loot quantity and burst
-
-Each new chest rolls 14–18 base occupied stacks plus any special reward rolls. The opening burst ejects half of all occupied stacks (rounded up), with stronger outward/upward velocity. Those stacks are removed from the GUI before they are dropped. The other half remains in the GUI.
+Maps are only added to explorer/trader-type Mob pools. Compasses remain uncommon rather than being inserted into every Mob's common pool. Creative/admin-only items, spawn eggs and restricted utility blocks are filtered from random material selection.
 
 ## Dimension-aware progression
 
-The loot generator receives the Mob's current world environment.
-
 | Dimension | Progression examples |
 |---|---|
-| Overworld | Obsidian, flint and steel, iron, paper, compass, map and clock |
-| Nether | Quartz, glowstone dust, blaze rods, gold, magma cream, Nether bricks, with ancient debris and Netherite scrap/ingot in rare pools |
-| End | Ender pearls, chorus fruit, purpur, shulker shells and Dragon-related rare materials |
+| Overworld | Obsidian, flint and steel, iron, building blocks and crafting supplies |
+| Nether | Quartz, glowstone dust, blaze rods, gold, Nether bricks, with ancient debris and Netherite scrap/ingot in rare pools |
+| End | Ender pearls, chorus fruit, purpur, End Stone, Shulker shells and Dragon-related rare materials |
 
-Netherite progression loot is limited to the Nether environment. Overworld and End pools do not include Netherite scrap/ancient debris/ingots.
+Netherite progression loot is limited to the Nether environment. Overworld and End pools do not include Netherite scrap, ancient debris or Netherite ingots.
 
-## Rarity
+## Rarity and special rewards
 
-Default weights are configurable and normalized:
+Default rarity weights are configurable and normalized:
 
 | Rarity | Default weight |
 |---|---:|
@@ -35,24 +31,19 @@ Default weights are configurable and normalized:
 
 Boss mobs receive a small rarity bias only. No named item is guaranteed.
 
-## Custom rewards
+- Liquid Gold Bucket placeholder: 35% test-build chance; sealed item that does not place ordinary lava.
+- Golden foods: 6% special-food chance.
+- Custom equipment: 10% chance, at most one piece per chest.
+- Emerald Armor is one green-dyed leather armour piece, not a complete set.
+- Ancient Enchanted Books use real vanilla enchantment keys and bounded custom levels; the list and application rules are in [Enchantment Books](ENCHANTMENT_BOOKS.md).
+- Normal Vanilla Enchanted Books are separate loot and use standard stored enchantment levels, so they remain anvil-compatible.
 
-- Golden Potato, Golden Porkchop and Golden Bread use vanilla base items with custom names and metadata; custom item textures are not part of this no-resource-pack build.
-- Emerald Armor currently uses a single green-dyed leather armor piece.
-- Liquid Gold Bucket is a sealed placeholder with an orange-filled vanilla bucket icon. Its fluid system and ten-second abilities are not implemented.
-- Custom equipment is limited to one equipment reward per chest.
-- Ancient Enchanted Books store real Sharpness, Power, Protection, Efficiency, Unbreaking, Fortune, Looting, Feather Falling, Respiration or Mending enchantments at levels 30–60. Right-click with compatible gear in the off-hand to apply the stored enchantment directly.
-- Other named artifacts remain item-ID foundations until their abilities are implemented.
+## Enchantment burst and death-drop rule
 
-## Burst and death-drop rule
+At chest opening, 50% of all occupied GUI stacks (rounded up) are removed from the GUI before they are launched outward. Their low horizontal velocity targets roughly 3–4 blocks of scatter. The remaining stacks stay in the GUI.
 
-At chest opening, 50% of the generated item stacks are removed from the GUI inventory before being launched outward into the world. The remaining GUI contents are serialized into the Mob's PersistentDataContainer and refreshed as inventory clicks, drags and closing occur.
+The live GUI contents are serialized into the Mob's PersistentDataContainer and refreshed after inventory clicks, drags and closing. After a Mob's chest has been used, killing that Mob clears vanilla item drops and drops only the remaining serialized chest contents. Normal XP is preserved. If the chest was never opened, ordinary vanilla mob drops and XP remain.
 
-After a Mob's chest has been used, killing that Mob clears vanilla item drops and XP and drops only the saved remaining chest contents. If the chest was never opened, ordinary vanilla mob drops remain. The ejected stacks are not duplicated in the saved inventory.
+## Liquid Gold status
 
-## Remaining work
-
-- Real server crash and multiplayer stress tests around inventory checkpointing.
-- More fine-grained per-Mob and biome balancing.
-- Functional Liquid Gold fluid flow/infinite source and requested ten-second abilities.
-- Custom item abilities, custom enchantment effects, Legend points and boss progression.
+The current Liquid Gold Bucket is a sealed placeholder. It has a lava-bucket-style filled icon, but its right-click is blocked to prevent placing ordinary lava. A true golden water-like fluid, bucket placement/scooping, flow updates, two-source infinite behaviour and the requested ten-second abilities are not implemented yet.

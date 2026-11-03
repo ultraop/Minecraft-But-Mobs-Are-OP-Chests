@@ -5,33 +5,47 @@
 - [ ] Gradle clean build succeeds.
 - [ ] JAR contains plugin.yml, config.yml, messages.yml and expected classes.
 - [ ] No resource-pack or client-mod dependency is loaded.
+- [ ] No obsolete Cow/Creeper ItemDisplay animator classes are bundled.
 
-## Interaction and vanilla model
-- [ ] Right-click any configured Mob once: it freezes in place.
-- [ ] Freeze tremble is subtle and does not change body size.
-- [ ] Second right-click: Mob.lookAt smoothly raises the vanilla head/front toward the configured upward target.
-- [ ] Native mob model remains visible throughout.
-- [ ] Mob's size, width and height remain vanilla; its entity pitch is not used as the chest lid.
-- [ ] Close GUI: head/look pose, AI, awareness, gravity and collision restore.
-- [ ] Creeper cannot ignite/explode while chest is frozen or active; normal fuse behavior returns after close.
-- [ ] One Mob cannot open a second chest after its first session is consumed.
+## Mob pose and freeze
+- [ ] First right-click freezes the Mob in place with a subtle tremble.
+- [ ] AI and awareness remain disabled through FROZEN, OPENING, LOOT_OPEN and CLOSING.
+- [ ] Second right-click raises pitch toward -88 degrees.
+- [ ] Open pitch remains fixed while GUI is open; it does not alternate up/down.
+- [ ] Close returns saved yaw/pitch, AI, awareness, gravity and collision.
+- [ ] Mob size, width, height and hitbox remain vanilla.
+- [ ] Creeper cannot ignite/explode while its chest is frozen or active; normal fuse behaviour returns after close.
+
+## Enchantment books
+- [ ] Right-click in air works even when vanilla would mark PlayerInteractEvent as cancelled.
+- [ ] Right-click on a block works without opening/using the block.
+- [ ] Custom tome in main hand plus helmet in off-hand applies Respiration.
+- [ ] Custom tome in main hand plus boots in off-hand applies Feather Falling.
+- [ ] Bow in off-hand accepts Power; sword accepts Sharpness; crossbow accepts Quick Charge/Piercing.
+- [ ] Respiration on leggings and Feather Falling on a helmet are rejected without consuming the book.
+- [ ] Off-hand armour/tool does not equip or move while the custom book is used.
+- [ ] Conflicting enchantments and already-higher levels are rejected without consuming the book.
+- [ ] Successful application consumes one custom book and the item retains its enchantment after relog/restart.
+- [ ] Custom book tooltip has no untranslated enchantment.level.N line.
+- [ ] Normal Vanilla Enchanted Books still work in an anvil.
+- [ ] Old custom books with stored high levels have their legacy stored entry removed and applied level clamped to 15.
 
 ## Loot and persistence
-- [ ] Loot count and quantities vary.
-- [ ] Common utility items include paper, compass, maps, clocks, books and crafting supplies.
-- [ ] Overworld loot can include obsidian and flint and steel.
-- [ ] Nether loot can include blaze rods and rare Netherite progression items.
+- [ ] Loot count is 14–18 base occupied stacks plus any special rewards.
+- [ ] Common pools mix stone, dirt, sand, gravel, deepslate, dyes, bones, ink, food, crafting materials and utility items.
+- [ ] Signed Written Books and effect-bearing potions are valid items.
+- [ ] Normal Vanilla Enchanted Books have valid stored levels.
+- [ ] Maps are restricted to explorer/trader-type Mob pools.
 - [ ] Netherite scrap/ancient debris/ingot do not appear in Overworld or End pools.
-- [ ] End pools include Ender and Shulker progression supplies.
-- [ ] Loot burst stacks are removed from the GUI before dropping in the world.
+- [ ] Half the occupied stacks (rounded up) are burst from the chest; the remainder stays in the GUI.
+- [ ] Burst items land within the intended 3–4 block area and are removed from the GUI before spawning.
 - [ ] Inventory click/shift-click/drag/close saves remaining GUI contents.
-- [ ] Kill a chest-used mob: only remaining chest contents drop, with no vanilla mob item drops, while normal XP remains.
-- [ ] Kill a mob whose chest was never opened: normal vanilla drops/XP remain.
+- [ ] Kill a chest-used Mob: only remaining chest contents drop, with normal XP preserved.
+- [ ] Kill a Mob whose chest was never opened: normal vanilla drops and XP remain.
 - [ ] Kill after taking all items: no chest items drop.
-- [ ] Restart/chunk unload/disconnect does not duplicate stored items.
 
-## Known visual limitations to verify
-- [ ] The head/look controller raises the head/front for Cow, Pig, Sheep, Goat, Creeper, Zombie, Skeleton, Horse, etc.
-- [ ] Models with no separate head/look animation (e.g. Squid tentacles) are documented as an API limitation.
-- [ ] No custom resource pack is loaded or required.
-- [ ] All visual checks are tested from multiple client angles and with two players.
+## Known visual limitations
+- [ ] Check head/front pose on Cow, Pig, Sheep, Goat, Creeper, Zombie, Skeleton, Horse, Donkey, Parrot and Iron Golem.
+- [ ] Squid tentacles are documented as requiring a separate renderer.
+- [ ] Verify all checks from multiple client angles and with two players.
+- [ ] Visual appearance and multiplayer synchronization require live Paper 26.3 client testing; CI cannot certify these.

@@ -43,9 +43,9 @@ public final class MobChestsCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(plugin.messages().color("&7Created by: &fUltra OP"));
         sender.sendMessage(plugin.messages().color("&7Components: &fPaper Plugin only"));
         sender.sendMessage(plugin.messages().color("&aMob interaction: &fAll configured vanilla Mobs; no size/model replacement"));
-        sender.sendMessage(plugin.messages().color("&aVisual pose: &fVanilla head-look control; no Resource Pack or Client Mod"));
-        sender.sendMessage(plugin.messages().color("&aFreeze: &fAnchored with a subtle head tremble"));
-        sender.sendMessage(plugin.messages().color("&aLoot opening: &fHead/front lift, firework burst and one GUI session"));
+        sender.sendMessage(plugin.messages().color("&aVisual pose: &fFixed vanilla pitch while AI is disabled"));
+        sender.sendMessage(plugin.messages().color("&aFreeze: &fAnchored, AI disabled, subtle pitch tremble"));
+        sender.sendMessage(plugin.messages().color("&aLoot opening: &fFixed upward pitch, firework and half-stack burst"));
         sender.sendMessage(plugin.messages().color("&aDeath drops: &fRemaining chest items replace vanilla mob drops after use"));
         sender.sendMessage(plugin.messages().color("&aLoot: &fMob-family and dimension-aware progression pools"));
         sender.sendMessage(plugin.messages().color("&eLimits: &fIndependent tentacle/body-part animation and custom textures require a client renderer or Resource Pack"));
@@ -64,7 +64,7 @@ public final class MobChestsCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(plugin.messages().color("&7Mob support: &aAll configured vanilla Mob entities"));
         sender.sendMessage(plugin.messages().color("&7Vanilla size/model: &aUnchanged"));
         sender.sendMessage(plugin.messages().color("&7Resource Pack / Client Mod: &aNot required"));
-        sender.sendMessage(plugin.messages().color("&7Head/front pose: &aVanilla head-look animation"));
+        sender.sendMessage(plugin.messages().color("&7Head/front pose: &aFixed vanilla pitch pose"));
         sender.sendMessage(plugin.messages().color("&7Saved chest drops replace vanilla drops after use: &aEnabled"));
         sender.sendMessage(plugin.messages().color("&7Dimension loot: &aOverworld / Nether / End pools"));
         sender.sendMessage(plugin.messages().color("&7Liquid Gold real fluid and 10-second powers: &cNot implemented"));
