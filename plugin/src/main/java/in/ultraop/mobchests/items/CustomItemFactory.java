@@ -9,6 +9,7 @@ import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.components.FoodComponent;
 import org.bukkit.persistence.PersistentDataType;
 
 import java.util.ArrayList;
@@ -69,8 +70,14 @@ public final class CustomItemFactory {
         meta.displayName(Component.text(food.name(), NamedTextColor.GOLD)
                 .decoration(TextDecoration.ITALIC, TextDecoration.State.FALSE)
                 .decoration(TextDecoration.BOLD, TextDecoration.State.TRUE));
-        meta.lore(List.of(Component.text("A rare golden version of familiar food.",
-                NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, TextDecoration.State.FALSE)));
+        meta.lore(List.of(
+                Component.text("A familiar Minecraft food with a soft golden tint.", NamedTextColor.GRAY)
+                        .decoration(TextDecoration.ITALIC, TextDecoration.State.FALSE),
+                Component.text("Eat for a random bonus lasting 5–10 seconds.", NamedTextColor.YELLOW)
+                        .decoration(TextDecoration.ITALIC, TextDecoration.State.FALSE)));
+        FoodComponent food = meta.getFood();
+        food.setCanAlwaysEat(true);
+        meta.setFood(food);
         meta.setItemModel(new NamespacedKey(plugin, food.id()));
         meta.getPersistentDataContainer().set(new NamespacedKey(plugin, "custom_item_id"),
                 PersistentDataType.STRING, food.id());
