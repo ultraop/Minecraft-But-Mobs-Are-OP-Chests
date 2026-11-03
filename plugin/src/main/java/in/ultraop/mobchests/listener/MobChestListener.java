@@ -267,18 +267,18 @@ public final class MobChestListener implements Listener {
 
     private int safeMaximumCustomLevel(String enchantmentId) {
         return switch (enchantmentId) {
-            case "sharpness", "smite", "bane_of_arthropods", "power" -> 12;
-            case "protection", "feather_falling" -> 8;
-            case "blast_protection", "fire_protection", "projectile_protection" -> 7;
-            case "efficiency" -> 10;
-            case "unbreaking" -> 9;
-            case "fortune", "looting", "respiration", "sweeping_edge" -> 6;
-            case "fire_aspect", "knockback" -> 4;
-            case "depth_strider", "thorns", "soul_speed", "swift_sneak" -> 5;
-            case "quick_charge" -> 5;
-            case "piercing" -> 6;
-            case "impaling" -> 8;
-            case "loyalty", "riptide" -> 5;
+            case "sharpness", "smite", "bane_of_arthropods", "power" -> 14;
+            case "protection", "feather_falling" -> 10;
+            case "blast_protection", "fire_protection", "projectile_protection" -> 9;
+            case "efficiency" -> 12;
+            case "unbreaking" -> 10;
+            case "fortune", "looting", "respiration", "sweeping_edge" -> 8;
+            case "fire_aspect", "knockback" -> 6;
+            case "depth_strider", "thorns", "soul_speed", "swift_sneak" -> 7;
+            case "quick_charge" -> 7;
+            case "piercing" -> 8;
+            case "impaling" -> 10;
+            case "loyalty", "riptide" -> 7;
             // Mending and unknown legacy ids have no useful high-level scaling.
             default -> 1;
         };
