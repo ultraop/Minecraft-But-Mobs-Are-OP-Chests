@@ -3,6 +3,9 @@ package in.ultraop.mobchests.listener;
 import in.ultraop.mobchests.UltraOPMobChestsPlugin;
 import in.ultraop.mobchests.inventory.MobChestInventoryHolder;
 import in.ultraop.mobchests.loot.MobLootGenerator;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
@@ -192,14 +195,34 @@ public final class MobChestListener implements Listener {
                 new NamespacedKey(plugin, "custom_enchantment_rank"), PersistentDataType.INTEGER);
         int rank = storedRank == null ? 8 : Math.max(1, Math.min(15, storedRank));
 
-        // Migrate previously issued custom books: remove the old unsafe
-        // StoredEnchantments entry (e.g. Respiration enchantment.level.46).
-        if (held.getItemMeta() instanceof EnchantmentStorageMeta legacyMeta
+        // Normalise legacy and current custom books on use. Custom ranks live
+        // in PDC only; remove any old Vanilla StoredEnchantments and replace
+        // the tooltip with the clamped level so enchantment.level.46 is gone.
+        ItemMeta customBookMeta = held.getItemMeta();
+        boolean changedLegacyBook = false;
+        if (customBookMeta instanceof EnchantmentStorageMeta legacyMeta
                 && !legacyMeta.getStoredEnchants().isEmpty()) {
             for (Enchantment oldEnchantment : new ArrayList<>(legacyMeta.getStoredEnchants().keySet())) {
                 legacyMeta.removeStoredEnchant(oldEnchantment);
             }
-            held.setItemMeta(legacyMeta);
+            changedLegacyBook = true;
+        }
+        customBookMeta.getPersistentDataContainer().set(
+                new NamespacedKey(plugin, "custom_enchantment_rank"), PersistentDataType.INTEGER, rank);
+        customBookMeta.displayName(Component.text("Ancient Enchanted Book", NamedTextColor.LIGHT_PURPLE)
+                .decoration(TextDecoration.ITALIC, TextDecoration.State.FALSE)
+                .decoration(TextDecoration.BOLD, TextDecoration.State.TRUE));
+        customBookMeta.lore(List.of(
+                Component.text("Enchantment: " + titleEnchantment(enchantmentId), NamedTextColor.GOLD)
+                        .decoration(TextDecoration.ITALIC, TextDecoration.State.FALSE),
+                Component.text("Level: " + rank, NamedTextColor.AQUA)
+                        .decoration(TextDecoration.ITALIC, TextDecoration.State.FALSE),
+                Component.text("Hold compatible gear in your off-hand.", NamedTextColor.GRAY)
+                        .decoration(TextDecoration.ITALIC, TextDecoration.State.FALSE),
+                Component.text("Right-click while holding this book.", NamedTextColor.GRAY)
+                        .decoration(TextDecoration.ITALIC, TextDecoration.State.FALSE)));
+        held.setItemMeta(customBookMeta);
+        if (changedLegacyBook || storedRank == null || storedRank != rank) {
             player.getInventory().setItemInMainHand(held);
         }
 
@@ -214,7 +237,7 @@ public final class MobChestListener implements Listener {
             player.sendMessage("§ePlace compatible armour or a tool in your off-hand first.");
             return;
         }
-        if (!enchantment.canEnchantItem(target)) {
+        if (!enchantment.canEnchantItem(target) || !supportsTarget(enchantmentId, target)) {
             player.sendMessage("§c" + titleEnchantment(enchantmentId)
                     + " requires compatible gear. Check the armour/tool type.");
             return;
@@ -251,6 +274,37 @@ public final class MobChestListener implements Listener {
         player.sendMessage("§aApplied " + titleEnchantment(enchantmentId)
                 + " " + rank + " to " + target.getType().name().toLowerCase().replace('_', ' ') + ".");
         player.playSound(player.getLocation(), Sound.BLOCK_ENCHANTMENT_TABLE_USE, 0.7F, 1.35F);
+    }
+
+    private boolean supportsTarget(String enchantmentId, ItemStack item) {
+        org.bukkit.Material type = item.getType();
+        boolean helmet = type.name().endsWith("_HELMET") || type == org.bukkit.Material.TURTLE_HELMET;
+        boolean boots = type.name().endsWith("_BOOTS");
+        boolean leggings = type.name().endsWith("_LEGGINGS");
+        boolean armour = helmet || boots || leggings || type.name().endsWith("_CHESTPLATE");
+        boolean sword = type.name().endsWith("_SWORD") || type.name().endsWith("_AXE");
+        boolean bow = type == org.bukkit.Material.BOW;
+        boolean crossbow = type == org.bukkit.Material.CROSSBOW;
+        boolean trident = type == org.bukkit.Material.TRIDENT;
+        boolean tool = type.name().endsWith("_PICKAXE") || type.name().endsWith("_AXE")
+                || type.name().endsWith("_SHOVEL") || type.name().endsWith("_HOE")
+                || type == org.bukkit.Material.SHEARS;
+
+        return switch (enchantmentId) {
+            case "respiration" -> helmet;
+            case "feather_falling", "depth_strider", "soul_speed" -> boots;
+            case "swift_sneak" -> leggings;
+            case "protection", "blast_protection", "fire_protection",
+                    "projectile_protection", "thorns" -> armour;
+            case "sharpness", "smite", "bane_of_arthropods",
+                    "sweeping_edge", "fire_aspect", "knockback", "looting" -> sword;
+            case "power", "flame", "infinity" -> bow;
+            case "quick_charge", "piercing", "multishot" -> crossbow;
+            case "fortune", "efficiency", "silk_touch" -> tool;
+            case "impaling", "loyalty", "riptide" -> trident;
+            case "unbreaking" -> item.getType().getMaxDurability() > 0;
+            default -> enchantmentId.equals("mending") && item.getType().getMaxDurability() > 0;
+        };
     }
 
     private boolean isCustomEnchantmentBook(ItemStack item) {
