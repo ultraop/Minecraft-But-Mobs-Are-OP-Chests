@@ -191,10 +191,17 @@ def generate_assets() -> dict[str, str]:
         encoding="utf-8",
     )
 
-    # Use proper translucent rendering for the full-block overlay. Its high
-    # alpha masks blue water leaks while retaining a glassy gold-liquid finish.
-    for model_path in (ASSETS / "models" / "item").glob("liquid_gold_flow_*.json"):
+    # Match each vanilla Levelled water height. The source is 8/9 of a
+    # block, horizontal flows become shallower, and falling water fills a block.
+    for level in range(9):
+        item_id = f"liquid_gold_flow_{level}"
+        write_item_model(item_id)
+        model_path = ASSETS / "models" / "item" / f"{item_id}.json"
         model = json.loads(model_path.read_text(encoding="utf-8"))
+        height = 16 if level == 8 else max(2, round((8 - level) / 9 * 16))
+        for element in model.get("elements", []):
+            element["from"] = [0, 0, 0]
+            element["to"] = [16, height, 16]
         model["render_type"] = "minecraft:translucent"
         model_path.write_text(json.dumps(model, indent=2) + "\n", encoding="utf-8")
 
@@ -220,7 +227,7 @@ def main() -> None:
         raise SystemExit("Resource pack must target Minecraft 26.3 format 97.1")
 
     model_files = sorted(ASSETS.rglob("*.json"))
-    expected = 18 + (len(FOODS) * 2)
+    expected = 20 + (len(FOODS) * 2)
     if len(model_files) != expected:
         raise SystemExit(f"Expected {expected} item definition/model JSON files, found {len(model_files)}")
     for path in model_files:
@@ -274,7 +281,7 @@ def main() -> None:
             raise SystemExit("pack.mcmeta is missing at the ZIP root")
         if "assets/mobchests/items/liquid_gold_bucket.json" not in names:
             raise SystemExit("Liquid Gold bucket item definition is missing")
-        if "assets/mobchests/items/liquid_gold_flow_7.json" not in names:
+        if "assets/mobchests/items/liquid_gold_flow_8.json" not in names:
             raise SystemExit("Liquid Gold flow level models are incomplete")
         for item_id in FOODS:
             if f"assets/mobchests/items/{item_id}.json" not in names:
