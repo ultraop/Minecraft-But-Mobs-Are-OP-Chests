@@ -1,11 +1,13 @@
 package in.ultraop.mobchests.command;
 
 import in.ultraop.mobchests.UltraOPMobChestsPlugin;
+import in.ultraop.mobchests.items.CustomItemsMenu;
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
+import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -14,8 +16,12 @@ import java.util.List;
 
 public final class MobChestsCommand implements CommandExecutor, TabCompleter {
     private final UltraOPMobChestsPlugin plugin;
+    private final CustomItemsMenu itemsMenu;
 
-    public MobChestsCommand(UltraOPMobChestsPlugin plugin) { this.plugin = plugin; }
+    public MobChestsCommand(UltraOPMobChestsPlugin plugin, CustomItemsMenu itemsMenu) {
+        this.plugin = plugin;
+        this.itemsMenu = itemsMenu;
+    }
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command,
@@ -29,6 +35,7 @@ public final class MobChestsCommand implements CommandExecutor, TabCompleter {
             case "help" -> showHelp(sender);
             case "status" -> showStatus(sender);
             case "reload" -> reload(sender);
+            case "items" -> openItems(sender);
             default -> sender.sendMessage(ChatColor.RED + "Unknown subcommand. Use /mobchests help.");
         }
         return true;
@@ -71,8 +78,20 @@ public final class MobChestsCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(plugin.messages().color("&7Head/front pose: &aFixed vanilla pitch pose"));
         sender.sendMessage(plugin.messages().color("&7Saved chest drops replace vanilla drops after use: &aEnabled"));
         sender.sendMessage(plugin.messages().color("&7Dimension loot: &aOverworld / Nether / End pools"));
-        sender.sendMessage(plugin.messages().color("&7Liquid Gold real fluid and 10-second powers: &cNot implemented"));
+        sender.sendMessage(plugin.messages().color("&7Liquid Gold: &aWater-style flow, source regeneration and bucket pickup enabled"));
         sender.sendMessage(plugin.messages().color("&7Custom body-part renderers / squid tentacles: &cNot supported by this no-pack mode"));
+    }
+
+    private void openItems(CommandSender sender) {
+        if (!sender.hasPermission("mobchests.admin")) {
+            sender.sendMessage(ChatColor.RED + "You do not have permission.");
+            return;
+        }
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage(ChatColor.RED + "This command can only be used in-game.");
+            return;
+        }
+        itemsMenu.open(player);
     }
 
     private void reload(CommandSender sender) {
@@ -89,7 +108,10 @@ public final class MobChestsCommand implements CommandExecutor, TabCompleter {
                                                 @NotNull String alias, @NotNull String[] args) {
         if (args.length == 1) {
             List<String> options = new ArrayList<>(List.of("info", "help", "status"));
-            if (sender.hasPermission("mobchests.admin")) options.add("reload");
+            if (sender.hasPermission("mobchests.admin")) {
+                options.add("reload");
+                options.add("items");
+            }
             return options.stream().filter(s -> s.startsWith(args[0].toLowerCase())).toList();
         }
         return List.of();
