@@ -1,0 +1,13 @@
+{
+  "pack": {
+    "description": "Liquid Gold visuals for MobChests",
+    "min_format": [
+      97,
+      1
+    ],
+    "max_format": [
+      97,
+      1
+    ]
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "mobchests:item/liquid_gold_bucket"
+  }
+}
