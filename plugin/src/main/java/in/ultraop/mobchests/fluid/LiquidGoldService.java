@@ -39,7 +39,6 @@ import org.bukkit.scheduler.BukkitTask;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -62,7 +61,6 @@ public final class LiquidGoldService implements Listener {
     };
 
     private final UltraOPMobChestsPlugin plugin;
-    private final NamespacedKey fluidItemKey;
     private final NamespacedKey displayMarkerKey;
     private final NamespacedKey displaySourceKey;
     private final NamespacedKey displayLevelKey;
@@ -76,11 +74,9 @@ public final class LiquidGoldService implements Listener {
     private final Map<UUID, Long> lastPowerAt = new HashMap<>();
 
     private BukkitTask flowTask;
-    private long tickCounter;
 
     public LiquidGoldService(UltraOPMobChestsPlugin plugin) {
         this.plugin = plugin;
-        this.fluidItemKey = new NamespacedKey(plugin, "custom_fluid_id");
         this.displayMarkerKey = new NamespacedKey(plugin, "liquid_gold_cell");
         this.displaySourceKey = new NamespacedKey(plugin, "liquid_gold_source");
         this.displayLevelKey = new NamespacedKey(plugin, "liquid_gold_level");
@@ -92,7 +88,6 @@ public final class LiquidGoldService implements Listener {
     public void start() {
         scanLoadedChunks();
         flowTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
-            tickCounter += 10L;
             recalculateFlow();
             refreshImmersionEffects();
         }, 10L, Math.max(5L, plugin.getConfig().getLong("liquid-gold.flow-interval-ticks", 10L)));
