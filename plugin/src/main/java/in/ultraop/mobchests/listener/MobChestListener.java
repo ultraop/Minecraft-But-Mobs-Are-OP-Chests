@@ -890,7 +890,13 @@ public final class MobChestListener implements Listener {
                 setState(mob, CLOSING);
                 UUID openerId = openers.get(id);
                 Player opener = openerId == null ? null : Bukkit.getPlayer(openerId);
-                if (opener != null) opener.closeInventory();
+                if (opener != null) {
+                    Inventory top = opener.getOpenInventory().getTopInventory();
+                    if (top.getHolder() instanceof MobChestInventoryHolder holder
+                            && holder.mobId().equals(id)) {
+                        opener.closeInventory();
+                    }
+                }
 
                 stopTask(poseTasks.remove(id));
                 stopTask(freezeTasks.remove(id));
