@@ -191,19 +191,37 @@ def generate_assets() -> dict[str, str]:
         encoding="utf-8",
     )
 
-    # Match each vanilla Levelled water height. The source is 8/9 of a
-    # block, horizontal flows become shallower, and falling water fills a block.
+    # Match each vanilla Levelled water height. Keep the existing full-cube
+    # fluid model parent; the added falling model is cloned from level 0.
+    model_dir = ASSETS / "models" / "item"
+    item_dir = ASSETS / "items"
     for level in range(9):
         item_id = f"liquid_gold_flow_{level}"
-        write_item_model(item_id)
-        model_path = ASSETS / "models" / "item" / f"{item_id}.json"
-        model = json.loads(model_path.read_text(encoding="utf-8"))
+        item_path = item_dir / f"{item_id}.json"
+        if level == 8:
+            item_path.parent.mkdir(parents=True, exist_ok=True)
+            item_path.write_text(
+                json.dumps({
+                    "model": {
+                        "type": "minecraft:model",
+                        "model": f"mobchests:item/{item_id}",
+                    }
+                }, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            model = json.loads((model_dir / "liquid_gold_flow_0.json").read_text(encoding="utf-8"))
+        else:
+            model_path = model_dir / f"{item_id}.json"
+            model = json.loads(model_path.read_text(encoding="utf-8"))
         height = 16 if level == 8 else max(2, round((8 - level) / 9 * 16))
         for element in model.get("elements", []):
             element["from"] = [0, 0, 0]
             element["to"] = [16, height, 16]
         model["render_type"] = "minecraft:translucent"
-        model_path.write_text(json.dumps(model, indent=2) + "\n", encoding="utf-8")
+        (model_dir / f"{item_id}.json").write_text(
+            json.dumps(model, indent=2) + "\n",
+            encoding="utf-8",
+        )
 
     return {custom_id: manifest[vanilla_id] for custom_id, vanilla_id in required.items()}
 
