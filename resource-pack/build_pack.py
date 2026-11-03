@@ -57,21 +57,25 @@ def bucket_texture() -> list[list[tuple[int, int, int, int]]]:
     for y in range(16):
         row = []
         for x in range(16):
-            handle = (y in (1, 2) and 5 <= x <= 10) or (y == 3 and 4 <= x <= 11)
-            if 4 <= y <= 13:
-                inset = (y - 4) // 5
-                inside = 3 + inset <= x <= 12 - inset
+            # A recognizable bucket handle loop and a tapered metal pail.
+            handle = ((y == 1 and 6 <= x <= 9)
+                      or (y in (2, 3) and x in (5, 10)))
+            rim = y == 4 and 3 <= x <= 12
+            if 5 <= y <= 13:
+                inset = (y - 5) // 5
+                left, right = 3 + inset, 12 - inset
+                inside = left <= x <= right
             else:
-                inside = False
-            rim = y == 3 and 3 <= x <= 12
+                left, right, inside = 0, 0, False
             bottom = y == 14 and 5 <= x <= 10
-            if not (handle or inside or rim or bottom):
+            if not (handle or rim or inside or bottom):
                 row.append((0, 0, 0, 0))
                 continue
-            edge = (not inside or x in (3 + max(0, (y - 4) // 5), 12 - max(0, (y - 4) // 5)))
+
+            edge = inside and (x == left or x == right)
             if handle or rim or bottom or edge:
                 color = PALETTE["edge"]
-            elif y == 4 or (x + y) % 7 == 0:
+            elif y == 5 or (x + y) % 7 == 0:
                 color = PALETTE["shine"]
             elif (x + y) % 3 == 0:
                 color = PALETTE["deep"]
