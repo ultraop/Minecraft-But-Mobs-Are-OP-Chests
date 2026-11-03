@@ -168,9 +168,9 @@ public final class LiquidGoldService implements Listener {
             // RIGHT_CLICK_AIR is commonly pre-cancelled by Paper because a
             // vanilla bucket has no default air-use action; this custom action
             // intentionally handles it as drinking.
-            if (event.getAction() == org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK
-                    && event.isCancelled()) return;
-
+            // Region protection is checked through a synthetic BlockPlaceEvent
+            // in pour(); do not let the vanilla bucket's empty-hand cancellation
+            // suppress the custom placement.
             event.setCancelled(true);
             if (event.getAction() == org.bukkit.event.block.Action.RIGHT_CLICK_AIR) {
                 drink(player);
