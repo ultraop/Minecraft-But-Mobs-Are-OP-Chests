@@ -71,12 +71,9 @@ public final class LiquidGoldService implements Listener {
     private final NamespacedKey displayZKey;
 
     private final Map<FluidKey, FluidCell> cells = new HashMap<>();
-    private final Set<FluidKey> sources = new HashSet<>();
     private final Set<UUID> insidePlayers = new HashSet<>();
     private final Map<UUID, Long> lastPowerAt = new HashMap<>();
-    private final Map<FluidKey, Long> sourceStartedAt = new HashMap<>();
     private final Map<UUID, BukkitTask> drinkTasks = new HashMap<>();
-    private long simulationTick;
 
     private BukkitTask flowTask;
 
@@ -95,7 +92,10 @@ public final class LiquidGoldService implements Listener {
         // Native WATER ticks own all spreading and source regeneration.
         // This task only refreshes immersion effects for stationary players.
         flowTask = Bukkit.getScheduler().runTaskTimer(
-                plugin, this::refreshImmersionEffects, 10L, 10L);
+                plugin, () -> {
+                    refreshTrackedCells();
+                    refreshImmersionEffects();
+                }, 10L, 10L);
     }
 
     public void shutdown() {
@@ -109,8 +109,6 @@ public final class LiquidGoldService implements Listener {
         for (BukkitTask task : drinkTasks.values()) task.cancel();
         drinkTasks.clear();
         cells.clear();
-        sources.clear();
-        sourceStartedAt.clear();
         insidePlayers.clear();
         lastPowerAt.clear();
     }
@@ -224,8 +222,6 @@ public final class LiquidGoldService implements Listener {
         }
 
         placeWater(target, 0);
-        sources.add(key);
-        sourceStartedAt.put(key, simulationTick);
         cells.put(key, new FluidCell(0, true, null));
         ensureDisplay(key, 0, true);
         consumeFilledBucket(player);
@@ -461,8 +457,28 @@ public final class LiquidGoldService implements Listener {
         int level = data instanceof Levelled levelled ? levelled.getLevel() : 0;
         boolean source = level == 0;
         ensureDisplay(key, level, source);
-        if (source) sources.add(key);
-        else sources.remove(key);
+    }
+
+    private void refreshTrackedCells() {
+        for (Map.Entry<FluidKey, FluidCell> entry : new ArrayList<>(cells.entrySet())) {
+            FluidKey key = entry.getKey();
+            Block block = getBlock(key);
+            if (block == null) continue;
+            if (block.getType() != Material.WATER) {
+                FluidCell stale = cells.remove(key);
+                if (stale != null && stale.displayId != null) {
+                    org.bukkit.entity.Entity display = Bukkit.getEntity(stale.displayId);
+                    if (display != null) display.remove();
+                }
+                continue;
+            }
+            BlockData data = block.getBlockData();
+            int level = data instanceof Levelled levelled ? levelled.getLevel() : 0;
+            boolean source = level == 0;
+            if (entry.getValue().level != level || entry.getValue().source != source) {
+                ensureDisplay(key, level, source);
+            }
+        }
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -527,11 +543,6 @@ public final class LiquidGoldService implements Listener {
             }
 
             FluidKey key = new FluidKey(chunk.getWorld().getUID(), x, y, z);
-            if (isSource != 0) {
-                int configuredReach = Math.max(1, plugin.getConfig().getInt("liquid-gold.horizontal-range", 7)
-                        + plugin.getConfig().getInt("liquid-gold.vertical-range", 8) + 1);
-                sourceStartedAt.putIfAbsent(key, simulationTick - configuredReach);
-            }
             Block block = chunk.getWorld().getBlockAt(x, y, z);
             if (block.getType() != Material.WATER && (block.isEmpty() || block.isPassable())) {
                 placeWater(block, Math.max(0, Math.min(8, level)));
@@ -539,17 +550,11 @@ public final class LiquidGoldService implements Listener {
             if (block.getType() != Material.WATER) {
                 display.remove();
                 cells.remove(key);
-                sources.remove(key);
                 continue;
             }
 
             FluidCell previous = cells.put(key,
                     new FluidCell(level, isSource != 0, display.getUniqueId()));
-            if (isSource != 0) sources.add(key);
-            else {
-                sources.remove(key);
-                sourceStartedAt.remove(key);
-            }
 
             // Remove stale duplicate visual cells at the same block position.
             if (previous != null && previous.displayId != null
@@ -558,167 +563,6 @@ public final class LiquidGoldService implements Listener {
                 if (old != null) old.remove();
             }
             display.setItemStack(fluidDisplayItem(level));
-        }
-    }
-
-    private void recalculateFlow() {
-        // Intentionally unused: native Minecraft WATER now owns all flow and
-        // infinite-source behaviour. Kept as a compatibility shim for older
-        // method call sites while they are removed from the next cleanup.
-    }
-
-    /*
-     * Legacy custom BFS code retained temporarily for source compatibility.
-     * It is never called; do not re-enable it because it bypasses vanilla fluid
-     * timing and source regeneration.
-     */
-    private void legacyRecalculateFlow() {
-        if (!plugin.getConfig().getBoolean("liquid-gold.enabled", true)) return;
-        applyDiagonalInfiniteSources();
-
-        Map<FluidKey, FlowState> desired = new HashMap<>();
-        int totalLimit = Math.max(64, plugin.getConfig().getInt("liquid-gold.max-active-cells", 2048));
-        int horizontalRange = Math.max(1, Math.min(12,
-                plugin.getConfig().getInt("liquid-gold.horizontal-range", 7)));
-        int verticalRange = Math.max(1, Math.min(16,
-                plugin.getConfig().getInt("liquid-gold.vertical-range", 8)));
-
-        for (FluidKey source : new ArrayList<>(sources)) {
-            if (desired.size() >= totalLimit || !isChunkLoaded(source)) continue;
-            long startedAt = sourceStartedAt.computeIfAbsent(source, ignored -> simulationTick);
-            int allowedDepth = (int) Math.min(horizontalRange + verticalRange,
-                    Math.max(0L, simulationTick - startedAt));
-            buildFromSource(source, desired, horizontalRange, verticalRange, totalLimit, allowedDepth);
-        }
-
-        Iterator<Map.Entry<FluidKey, FluidCell>> iterator = cells.entrySet().iterator();
-        while (iterator.hasNext()) {
-            Map.Entry<FluidKey, FluidCell> entry = iterator.next();
-            FluidKey key = entry.getKey();
-            if (!isChunkLoaded(key)) continue;
-            if (desired.containsKey(key)) continue;
-            clearCell(key, entry.getValue());
-            if (entry.getValue().source) {
-                sources.remove(key);
-                sourceStartedAt.remove(key);
-            }
-            iterator.remove();
-        }
-
-        for (Map.Entry<FluidKey, FlowState> entry : desired.entrySet()) {
-            FluidKey key = entry.getKey();
-            if (!isChunkLoaded(key)) continue;
-            Block block = getBlock(key);
-            if (block == null) continue;
-
-            FluidCell old = cells.get(key);
-            if (old == null && !canReplaceForFluid(block)) continue;
-            if (old != null && block.getType() != Material.WATER
-                    && !canReplaceForFluid(block)) continue;
-
-            FlowState state = entry.getValue();
-            placeWater(block, state.level);
-            boolean source = sources.contains(key);
-            ensureDisplay(key, state.level, source);
-        }
-    }
-
-    private void buildFromSource(FluidKey source, Map<FluidKey, FlowState> desired,
-                                 int horizontalRange, int verticalRange, int totalLimit, int allowedDepth) {
-        World world = Bukkit.getWorld(source.worldId);
-        if (world == null) return;
-
-        ArrayDeque<FlowNode> queue = new ArrayDeque<>();
-        Set<FluidKey> visited = new HashSet<>();
-        queue.add(new FlowNode(source, 0, 0, 0, false));
-
-        while (!queue.isEmpty() && desired.size() < totalLimit) {
-            FlowNode node = queue.removeFirst();
-            if (!visited.add(node.key) || !isChunkLoaded(node.key)) continue;
-            int pathDepth = node.downDepth + node.horizontalDepth;
-            if (pathDepth > allowedDepth) continue;
-
-            Block currentBlock = world.getBlockAt(node.key.x, node.key.y, node.key.z);
-            FluidCell existing = cells.get(node.key);
-            if (currentBlock.getType() != Material.WATER
-                    && existing == null && !canReplaceForFluid(currentBlock)) continue;
-
-            FlowState candidate = new FlowState(node.level, sources.contains(node.key));
-            FlowState previous = desired.get(node.key);
-            if (previous == null || node.level < previous.level) desired.put(node.key, candidate);
-
-            Block below = currentBlock.getRelative(BlockFace.DOWN);
-            FluidKey belowKey = key(below);
-            boolean canFall = node.downDepth < verticalRange && isChunkLoaded(belowKey)
-                    && canFlowInto(below, belowKey);
-            if (canFall) {
-                if (pathDepth < allowedDepth) {
-                    queue.addLast(new FlowNode(belowKey, 8,
-                            node.downDepth + 1, node.horizontalDepth, true));
-                }
-                continue;
-            }
-
-            if (pathDepth >= allowedDepth || node.horizontalDepth >= horizontalRange) continue;
-            int nextLevel = node.falling ? 1 : (node.level == 0 ? 1 : node.level + 1);
-            if (nextLevel > 7) continue;
-
-            for (BlockFace face : HORIZONTAL) {
-                Block next = currentBlock.getRelative(face);
-                FluidKey nextKey = key(next);
-                if (!isChunkLoaded(nextKey) || !canFlowInto(next, nextKey)) continue;
-                queue.addLast(new FlowNode(nextKey, nextLevel,
-                        node.downDepth, node.horizontalDepth + 1, false));
-            }
-        }
-    }
-
-    private void applyDiagonalInfiniteSources() {
-        if (!plugin.getConfig().getBoolean("liquid-gold.diagonal-infinite-source", true)
-                || sources.size() < 2) return;
-
-        Set<FluidKey> additions = new HashSet<>();
-        for (FluidKey source : new ArrayList<>(sources)) {
-            for (int baseX = source.x - 1; baseX <= source.x; baseX++) {
-                for (int baseZ = source.z - 1; baseZ <= source.z; baseZ++) {
-                    FluidKey northWest = new FluidKey(source.worldId, baseX, source.y, baseZ);
-                    FluidKey northEast = new FluidKey(source.worldId, baseX + 1, source.y, baseZ);
-                    FluidKey southWest = new FluidKey(source.worldId, baseX, source.y, baseZ + 1);
-                    FluidKey southEast = new FluidKey(source.worldId, baseX + 1, source.y, baseZ + 1);
-
-                    boolean diagonal = (sources.contains(northWest) && sources.contains(southEast))
-                            || (sources.contains(northEast) && sources.contains(southWest));
-                    if (!diagonal) continue;
-
-                    List<FluidKey> corners = List.of(northWest, northEast, southWest, southEast);
-                    boolean supported = true;
-                    for (FluidKey corner : corners) {
-                        if (!isChunkLoaded(corner)) {
-                            supported = false;
-                            break;
-                        }
-                        Block floor = getBlock(corner);
-                        if (floor == null || !floor.getRelative(BlockFace.DOWN).getType().isSolid()) {
-                            supported = false;
-                            break;
-                        }
-                    }
-                    if (!supported) continue;
-
-                    for (FluidKey corner : corners) {
-                        if (sources.contains(corner)) continue;
-                        Block target = getBlock(corner);
-                        if (target != null && (target.getType() == Material.WATER
-                                || canReplaceForFluid(target))) additions.add(corner);
-                    }
-                }
-            }
-        }
-
-        for (FluidKey key : additions) {
-            sources.add(key);
-            sourceStartedAt.putIfAbsent(key, simulationTick);
-            cells.put(key, new FluidCell(0, true, null));
         }
     }
 
@@ -763,7 +607,7 @@ public final class LiquidGoldService implements Listener {
     }
 
     private ItemStack fluidDisplayItem(int level) {
-        int modelLevel = level >= 8 ? 0 : Math.max(0, Math.min(7, level));
+        int modelLevel = Math.max(0, Math.min(8, level));
         ItemStack item = new ItemStack(Material.YELLOW_STAINED_GLASS);
         ItemMeta meta = item.getItemMeta();
         meta.setItemModel(new NamespacedKey(plugin, "liquid_gold_flow_" + modelLevel));
@@ -794,26 +638,8 @@ public final class LiquidGoldService implements Listener {
 
     private void removeCell(FluidKey key, boolean clearBlock) {
         FluidCell cell = cells.remove(key);
-        sources.remove(key);
-        sourceStartedAt.remove(key);
         if (cell == null) return;
         if (clearBlock) clearCell(key, cell);
-    }
-
-    private boolean canFlowInto(Block block, FluidKey key) {
-        if (cells.containsKey(key)) return block.getType() == Material.WATER;
-        return canReplaceForFluid(block);
-    }
-
-    private boolean canReplaceForFluid(Block block) {
-        if (block.getType() == Material.WATER || block.isLiquid()) return false;
-        return block.isEmpty() || block.isPassable();
-    }
-
-    private boolean isChunkLoaded(FluidKey key) {
-        World world = Bukkit.getWorld(key.worldId);
-        if (world == null) return false;
-        return world.isChunkLoaded(key.x >> 4, key.z >> 4);
     }
 
     private Block getBlock(FluidKey key) {
@@ -827,9 +653,6 @@ public final class LiquidGoldService implements Listener {
     }
 
     private record FluidKey(UUID worldId, int x, int y, int z) { }
-    private record FlowState(int level, boolean source) { }
-    private record FlowNode(FluidKey key, int level, int downDepth,
-                            int horizontalDepth, boolean falling) { }
 
     private static final class FluidCell {
         private final int level;
