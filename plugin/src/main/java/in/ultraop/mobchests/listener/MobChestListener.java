@@ -195,18 +195,18 @@ public final class MobChestListener implements Listener {
         Integer storedRank = itemData.get(
                 new NamespacedKey(plugin, "custom_enchantment_rank"), PersistentDataType.INTEGER);
         int rank = storedRank == null ? 8 : Math.max(1, Math.min(15, storedRank));
+        // Mending has no useful scaling beyond vanilla level I.
+        if ("mending".equals(enchantmentId)) rank = 1;
 
         // Normalise legacy and current custom books on use. Custom ranks live
         // in PDC only; remove any old Vanilla StoredEnchantments and replace
         // the tooltip with the clamped level so enchantment.level.46 is gone.
         ItemMeta customBookMeta = held.getItemMeta();
-        boolean changedLegacyBook = false;
         if (customBookMeta instanceof EnchantmentStorageMeta legacyMeta
                 && !legacyMeta.getStoredEnchants().isEmpty()) {
             for (Enchantment oldEnchantment : new ArrayList<>(legacyMeta.getStoredEnchants().keySet())) {
                 legacyMeta.removeStoredEnchant(oldEnchantment);
             }
-            changedLegacyBook = true;
         }
         customBookMeta.getPersistentDataContainer().set(
                 new NamespacedKey(plugin, "custom_enchantment_rank"), PersistentDataType.INTEGER, rank);
@@ -223,9 +223,7 @@ public final class MobChestListener implements Listener {
                 Component.text("Right-click while holding this book.", NamedTextColor.GRAY)
                         .decoration(TextDecoration.ITALIC, TextDecoration.State.FALSE)));
         held.setItemMeta(customBookMeta);
-        if (changedLegacyBook || storedRank == null || storedRank != rank) {
-            player.getInventory().setItemInMainHand(held);
-        }
+        player.getInventory().setItemInMainHand(held);
 
         Enchantment enchantment = Registry.ENCHANTMENT.get(NamespacedKey.minecraft(enchantmentId));
         if (enchantment == null) {
