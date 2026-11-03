@@ -2,6 +2,7 @@ package in.ultraop.mobchests.loot;
 
 import in.ultraop.mobchests.UltraOPMobChestsPlugin;
 import in.ultraop.mobchests.inventory.MobChestInventoryHolder;
+import in.ultraop.mobchests.fluid.LiquidGoldService;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -70,7 +71,7 @@ public final class MobLootGenerator {
 
         // Special rewards occupy fresh slots; they never overwrite another reward.
         int nextSpecialSlot = stacks;
-        double liquidGoldChance = chance(plugin, "loot.liquid-gold-chance", 0.25);
+        double liquidGoldChance = chance(plugin, "loot.liquid-gold-chance", 0.08);
         if (stacks > 0 && nextSpecialSlot < slots.size() && random.nextDouble() < liquidGoldChance) {
             inventory.setItem(slots.get(nextSpecialSlot++), liquidGoldBucket(plugin));
         }
@@ -130,7 +131,9 @@ public final class MobLootGenerator {
             case UNCOMMON -> random.nextDouble() < 0.12
                     ? vanillaEnchantedBook(random)
                     : createLootStack(randomMaterial(uncommonPool(type, environment)), random, 1, 5);
-            case RARE -> random.nextDouble() < 0.42
+            case RARE -> random.nextDouble() < 0.05
+                    ? new ItemStack(randomMaterial(ARMOR_TRIM_ITEMS), 1)
+                    : random.nextDouble() < 0.42
                     ? createLootStack(randomMaterial(dimensionRarePool(environment)), random, 1, 2)
                     : random.nextBoolean()
                     ? enchantedGear(random)
@@ -238,15 +241,7 @@ public final class MobLootGenerator {
                 "DIAMOND_HOE", "CROSSBOW", "SPYGLASS", "BRUSH", "GOAT_HORN",
                 "RECOVERY_COMPASS", "TRIDENT", "FISHING_ROD", "SHEARS",
                 "MAGMA_CREAM", "GLOW_INK_SAC", "WRITTEN_BOOK",
-                "SENTRY_ARMOR_TRIM_SMITHING_TEMPLATE", "DUNE_ARMOR_TRIM_SMITHING_TEMPLATE",
-                "COAST_ARMOR_TRIM_SMITHING_TEMPLATE", "WILD_ARMOR_TRIM_SMITHING_TEMPLATE",
-                "WARD_ARMOR_TRIM_SMITHING_TEMPLATE", "EYE_ARMOR_TRIM_SMITHING_TEMPLATE",
-                "VEX_ARMOR_TRIM_SMITHING_TEMPLATE", "TIDE_ARMOR_TRIM_SMITHING_TEMPLATE",
-                "SNOUT_ARMOR_TRIM_SMITHING_TEMPLATE", "RIB_ARMOR_TRIM_SMITHING_TEMPLATE",
-                "SPIRE_ARMOR_TRIM_SMITHING_TEMPLATE", "WAYFINDER_ARMOR_TRIM_SMITHING_TEMPLATE",
-                "SHAPER_ARMOR_TRIM_SMITHING_TEMPLATE", "SILENCE_ARMOR_TRIM_SMITHING_TEMPLATE",
-                "RAISER_ARMOR_TRIM_SMITHING_TEMPLATE", "HOST_ARMOR_TRIM_SMITHING_TEMPLATE",
-                "FLOW_ARMOR_TRIM_SMITHING_TEMPLATE", "BOLT_ARMOR_TRIM_SMITHING_TEMPLATE"));
+                "MAGMA_CREAM", "GLOW_INK_SAC", "WRITTEN_BOOK"));
         if (isExplorer(type.name())) pool.add("MAP");
         pool.addAll(dimensionCommonPool(environment));
         return pool;
@@ -256,6 +251,17 @@ public final class MobLootGenerator {
         return List.of("VILLAGER", "WANDERING_TRADER", "TRADER_LLAMA",
                 "DONKEY", "MULE", "LLAMA").contains(typeName);
     }
+
+    private static final List<String> ARMOR_TRIM_ITEMS = List.of(
+            "SENTRY_ARMOR_TRIM_SMITHING_TEMPLATE", "DUNE_ARMOR_TRIM_SMITHING_TEMPLATE",
+            "COAST_ARMOR_TRIM_SMITHING_TEMPLATE", "WILD_ARMOR_TRIM_SMITHING_TEMPLATE",
+            "WARD_ARMOR_TRIM_SMITHING_TEMPLATE", "EYE_ARMOR_TRIM_SMITHING_TEMPLATE",
+            "VEX_ARMOR_TRIM_SMITHING_TEMPLATE", "TIDE_ARMOR_TRIM_SMITHING_TEMPLATE",
+            "SNOUT_ARMOR_TRIM_SMITHING_TEMPLATE", "RIB_ARMOR_TRIM_SMITHING_TEMPLATE",
+            "SPIRE_ARMOR_TRIM_SMITHING_TEMPLATE", "WAYFINDER_ARMOR_TRIM_SMITHING_TEMPLATE",
+            "SHAPER_ARMOR_TRIM_SMITHING_TEMPLATE", "SILENCE_ARMOR_TRIM_SMITHING_TEMPLATE",
+            "RAISER_ARMOR_TRIM_SMITHING_TEMPLATE", "HOST_ARMOR_TRIM_SMITHING_TEMPLATE",
+            "FLOW_ARMOR_TRIM_SMITHING_TEMPLATE", "BOLT_ARMOR_TRIM_SMITHING_TEMPLATE");
 
     private static List<String> dimensionRarePool(World.Environment environment) {
         return switch (environment) {
@@ -487,18 +493,7 @@ public final class MobLootGenerator {
     }
 
     private static ItemStack liquidGoldBucket(UltraOPMobChestsPlugin plugin) {
-        ItemStack item = taggedArtifact(plugin, "liquid_gold_bucket",
-                "Liquid Gold Bucket", Material.LAVA_BUCKET);
-        ItemMeta meta = item.getItemMeta();
-        meta.getPersistentDataContainer().set(
-                new NamespacedKey(plugin, "custom_fluid_id"),
-                PersistentDataType.STRING, "liquid_gold");
-        meta.displayName(itemTitle("Liquid Gold Bucket", NamedTextColor.GOLD));
-        meta.lore(List.of(
-                itemLore("Golden water-like liquid", NamedTextColor.GRAY),
-                itemLore("This item is sealed in the current build.", NamedTextColor.DARK_GRAY)));
-        item.setItemMeta(meta);
-        return item;
+        return LiquidGoldService.createBucket(plugin);
     }
 
     private static ItemStack artifact(UltraOPMobChestsPlugin plugin,
@@ -541,6 +536,11 @@ public final class MobLootGenerator {
     private static ItemStack stack(Material material, ThreadLocalRandom random, int min, int max) {
         if (material == null || material.isAir()) material = Material.BREAD;
         int maxAllowed = Math.max(1, material.getMaxStackSize());
+        // Navigation tools and trim templates are single rare finds, not piles.
+        if (material == Material.COMPASS || material == Material.RECOVERY_COMPASS
+                || material == Material.MAP || material.name().endsWith("_ARMOR_TRIM_SMITHING_TEMPLATE")) {
+            return new ItemStack(material, 1);
+        }
         int lower = Math.max(1, Math.min(min, maxAllowed));
         int upper = Math.max(lower, Math.min(max, maxAllowed));
         return new ItemStack(material, random.nextInt(lower, upper + 1));
