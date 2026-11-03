@@ -180,9 +180,12 @@ public final class MobLootGenerator {
         List<String> pool = new ArrayList<>(familyCommonPool(type));
         // Broad utility mix: navigation, crafting, building and basic progression.
         pool.addAll(List.of(
-                "PAPER", "CLOCK", "BOOK", "WRITTEN_BOOK", "FEATHER", "STRING",
+                "PAPER", "COMPASS", "CLOCK", "BOOK", "WRITTEN_BOOK", "FEATHER", "STRING",
                 "IRON_NUGGET", "COAL", "COPPER_INGOT", "REDSTONE", "LAPIS_LAZULI",
                 "GOLD_NUGGET", "BREAD", "ARROW", "LEATHER", "TORCH", "STICK",
+                "WOODEN_PICKAXE", "STONE_PICKAXE", "WOODEN_AXE", "STONE_AXE",
+                "WOODEN_SHOVEL", "STONE_SHOVEL", "WOODEN_HOE", "STONE_HOE",
+                "FISHING_ROD", "SHEARS", "FLINT_AND_STEEL", "SHIELD",
                 "APPLE", "CARROT", "POTATO", "GOLDEN_CARROT", "BAKED_POTATO",
                 "BEETROOT", "BEETROOT_SEEDS", "MELON_SLICE", "PUMPKIN_SEEDS",
                 "WHEAT", "WHEAT_SEEDS", "SUGAR", "HONEY_BOTTLE", "HONEYCOMB",
@@ -227,10 +230,13 @@ public final class MobLootGenerator {
     private static List<String> uncommonPool(EntityType type, World.Environment environment) {
         List<String> pool = new ArrayList<>(List.of(
                 "IRON_INGOT", "GOLD_INGOT", "EMERALD", "EXPERIENCE_BOTTLE",
-                "GOLDEN_CARROT", "ENDER_PEARL", "BOOK", "COMPASS",
+                "GOLDEN_CARROT", "ENDER_PEARL", "BOOK", "COMPASS", "ENCHANTED_BOOK",
                 "FLINT_AND_STEEL", "OBSIDIAN", "POTION", "SPLASH_POTION",
                 "LINGERING_POTION", "LANTERN", "SOUL_LANTERN", "NAME_TAG",
                 "SADDLE", "LEAD", "BELL", "HONEY_BOTTLE", "SLIME_BALL",
+                "IRON_PICKAXE", "IRON_AXE", "IRON_SHOVEL", "IRON_HOE",
+                "DIAMOND_HOE", "CROSSBOW", "SPYGLASS", "BRUSH", "GOAT_HORN",
+                "RECOVERY_COMPASS", "TRIDENT", "FISHING_ROD", "SHEARS",
                 "MAGMA_CREAM", "GLOW_INK_SAC", "WRITTEN_BOOK",
                 "SENTRY_ARMOR_TRIM_SMITHING_TEMPLATE", "DUNE_ARMOR_TRIM_SMITHING_TEMPLATE",
                 "COAST_ARMOR_TRIM_SMITHING_TEMPLATE", "WILD_ARMOR_TRIM_SMITHING_TEMPLATE",
