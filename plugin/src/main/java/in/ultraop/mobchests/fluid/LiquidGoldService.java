@@ -94,6 +94,7 @@ public final class LiquidGoldService implements Listener {
         flowTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
             tickCounter += 10L;
             recalculateFlow();
+            refreshImmersionEffects();
         }, 10L, Math.max(5L, plugin.getConfig().getLong("liquid-gold.flow-interval-ticks", 10L)));
     }
 
@@ -306,21 +307,35 @@ public final class LiquidGoldService implements Listener {
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPlayerMove(PlayerMoveEvent event) {
         if (!event.hasChangedPosition() || event.getTo() == null) return;
-        Player player = event.getPlayer();
+        updateImmersion(event.getPlayer());
+    }
+
+    /**
+     * Refresh powers on a scheduled tick as well as on movement. A player who
+     * stays still underwater therefore keeps the ten-second effects, while
+     * leaving the Liquid Gold volume stops refresh immediately.
+     */
+    private void refreshImmersionEffects() {
+        if (!plugin.getConfig().getBoolean("liquid-gold.enabled", true)) return;
+        for (Player player : Bukkit.getOnlinePlayers()) updateImmersion(player);
+    }
+
+    private void updateImmersion(Player player) {
         UUID id = player.getUniqueId();
         boolean touching = intersectsFluid(player.getBoundingBox(), player.getWorld().getUID());
         if (!touching) {
             insidePlayers.remove(id);
+            lastPowerAt.remove(id);
             return;
         }
 
         long now = System.currentTimeMillis();
         long last = lastPowerAt.getOrDefault(id, 0L);
-        if (!insidePlayers.contains(id) || now - last >= 4_000L) {
-            insidePlayers.add(id);
+        boolean firstEntry = insidePlayers.add(id);
+        if (firstEntry || now - last >= 4_000L) {
             lastPowerAt.put(id, now);
             applyGoldenSurge(player);
-            player.sendActionBar("§6Liquid Gold — golden powers active!");
+            if (firstEntry) player.sendActionBar("§6Liquid Gold — golden powers active!");
         }
     }
 
