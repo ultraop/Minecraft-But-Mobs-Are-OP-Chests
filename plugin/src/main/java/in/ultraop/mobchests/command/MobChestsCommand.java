@@ -75,7 +75,8 @@ public final class MobChestsCommand implements CommandExecutor, TabCompleter {
                 + plugin.settings().totalMobTypeCount() + " Paper Mob entity types"));
         sender.sendMessage(plugin.messages().color("&7Vanilla size/model: &aUnchanged"));
         sender.sendMessage(plugin.messages().color("&7Resource Pack: &aRequired for gold visuals &8| &7Client mod: &aNot required"));
-        sender.sendMessage(plugin.messages().color("&7Custom item catalogue: &a/mobchests items (OP only)"));\n        sender.sendMessage(plugin.messages().color("&7Head/front pose: &aFixed vanilla pitch pose"));
+        sender.sendMessage(plugin.messages().color("&7Custom item catalogue: &a/mobchests items (OP only)"));
+        sender.sendMessage(plugin.messages().color("&7Head/front pose: &aFixed vanilla pitch pose"));
         sender.sendMessage(plugin.messages().color("&7Saved chest drops replace vanilla drops after use: &aEnabled"));
         sender.sendMessage(plugin.messages().color("&7Dimension loot: &aOverworld / Nether / End pools"));
         sender.sendMessage(plugin.messages().color("&7Liquid Gold: &aWater-style flow, source regeneration and bucket pickup enabled"));
