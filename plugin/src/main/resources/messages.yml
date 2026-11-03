@@ -5,6 +5,7 @@ help:
     - "&e/mobchests info &7- Build, platform and feature status."
     - "&e/mobchests help &7- This command guide."
     - "&e/mobchests status &7- Runtime status."
-    - "&e/mobchests items &7- Open the OP custom-items catalogue (admin)."\n    - "&e/mobchests reload &7- Reload configuration (admin)."
+    - "&e/mobchests items &7- Open the OP custom-items catalogue (admin)."
+    - "&e/mobchests reload &7- Reload configuration (admin)."
     - "&8Creative catalogue includes Liquid Gold Bucket and Golden Food."
     - "&6&l━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
