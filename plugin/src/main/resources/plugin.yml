@@ -8,7 +8,7 @@ load: POSTWORLD
 commands:
   mobchests:
     description: Main command for Mob Chests.
-    usage: "/mobchests <info|help|status|reload>"
+    usage: "/mobchests <info|help|status|items|reload>"
     aliases: [mobchest]
     permission: mobchests.use
 permissions:
