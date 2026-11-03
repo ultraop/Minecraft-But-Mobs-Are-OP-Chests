@@ -185,8 +185,7 @@ public final class LiquidGoldService implements Listener {
             return;
         }
 
-        if (!event.isCancelled()
-                && held.getType() == Material.BUCKET
+        if (held.getType() == Material.BUCKET
                 && event.getAction() == org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK
                 && event.getClickedBlock() != null) {
             FluidKey clicked = key(event.getClickedBlock());
