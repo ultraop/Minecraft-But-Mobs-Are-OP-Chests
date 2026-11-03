@@ -27,14 +27,22 @@ jobs:
       - name: Build Paper plugin
         run: gradle clean build
 
-      - name: Verify plugin output
+      - name: Build Liquid Gold resource pack
+        run: python3 resource-pack/build_pack.py
+
+      - name: Verify plugin and resource pack outputs
         run: |
           test -f plugin/build/libs/UltraOP-MobChests-0.1.0-SNAPSHOT.jar
           jar tf plugin/build/libs/UltraOP-MobChests-0.1.0-SNAPSHOT.jar | grep -q "in/ultraop/mobchests/listener/MobChestListener.class"
+          jar tf plugin/build/libs/UltraOP-MobChests-0.1.0-SNAPSHOT.jar | grep -q "in/ultraop/mobchests/fluid/LiquidGoldService.class"
+          test -f resource-pack/build/MobChests-Liquid-Gold-ResourcePack.zip
+          unzip -t resource-pack/build/MobChests-Liquid-Gold-ResourcePack.zip
 
-      - name: Upload Paper plugin JAR
+      - name: Upload Paper plugin and Liquid Gold resource pack
         uses: actions/upload-artifact@v4
         with:
-          name: UltraOP-MobChests-No-ResourcePack-${{ github.sha }}
-          path: plugin/build/libs/*.jar
+          name: MobChests-Paper-26.3-Liquid-Gold-${{ github.sha }}
+          path: |
+            plugin/build/libs/*.jar
+            resource-pack/build/*.zip
           if-no-files-found: error
