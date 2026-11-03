@@ -551,6 +551,11 @@ public final class MobChestListener implements Listener {
             Location anchor = readAnchor(mob);
             if (anchor == null) {
                 stopTask(poseTasks.remove(id));
+                Inventory inventory = activeInventories.get(id);
+                if (inventory != null) persistInventory(mob, inventory);
+                activeInventories.remove(id);
+                activeMobs.remove(id);
+                openers.remove(id);
                 setState(mob, LOOTED);
                 restoreNormalState(mob);
                 return;
@@ -958,6 +963,26 @@ public final class MobChestListener implements Listener {
                 Inventory inventory = activeInventories.get(mobId);
                 if (inventory != null) persistInventory(mob, inventory);
                 else persistPlayerOpenInventory(mobId);
+
+                // Close a live player's GUI while this listener is still
+                // registered, so no temporary inventory remains interactable
+                // after a plugin reload/disable.
+                setState(mob, CLOSING);
+                UUID openerId = openers.get(mobId);
+                Player opener = openerId == null ? null : Bukkit.getPlayer(openerId);
+                if (opener != null) {
+                    Inventory top = opener.getOpenInventory().getTopInventory();
+                    if (top.getHolder() instanceof MobChestInventoryHolder holder
+                            && holder.mobId().equals(mobId)) {
+                        opener.closeInventory();
+                    }
+                }
+
+                Inventory current = activeInventories.get(mobId);
+                if (current != null) persistInventory(mob, current);
+                activeInventories.remove(mobId);
+                activeMobs.remove(mobId);
+                openers.remove(mobId);
                 setState(mob, LOOTED);
                 restoreNormalState(mob);
             }
