@@ -3,6 +3,7 @@ package in.ultraop.mobchests.loot;
 import in.ultraop.mobchests.UltraOPMobChestsPlugin;
 import in.ultraop.mobchests.inventory.MobChestInventoryHolder;
 import in.ultraop.mobchests.fluid.LiquidGoldService;
+import in.ultraop.mobchests.items.CustomItemFactory;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -19,7 +20,6 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.EnchantmentStorageMeta;
 import org.bukkit.inventory.meta.LeatherArmorMeta;
 import org.bukkit.inventory.meta.PotionMeta;
-import org.bukkit.inventory.meta.BookMeta;
 import org.bukkit.potion.PotionType;
 import org.bukkit.World;
 import org.bukkit.persistence.PersistentDataType;
@@ -180,31 +180,13 @@ public final class MobLootGenerator {
     }
 
     private static List<String> commonPool(EntityType type, World.Environment environment) {
+        // Keep common drops practical and compact; avoid flooding players with
+        // decorative blocks, dye piles and low-value starter tools.
         List<String> pool = new ArrayList<>(familyCommonPool(type));
-        // Broad utility mix: navigation, crafting, building and basic progression.
         pool.addAll(List.of(
-                "PAPER", "COMPASS", "CLOCK", "BOOK", "WRITTEN_BOOK", "FEATHER", "STRING",
-                "IRON_NUGGET", "COAL", "COPPER_INGOT", "REDSTONE", "LAPIS_LAZULI",
-                "GOLD_NUGGET", "BREAD", "ARROW", "LEATHER", "TORCH", "STICK",
-                "WOODEN_PICKAXE", "STONE_PICKAXE", "WOODEN_AXE", "STONE_AXE",
-                "WOODEN_SHOVEL", "STONE_SHOVEL", "WOODEN_HOE", "STONE_HOE",
-                "FISHING_ROD", "SHEARS", "FLINT_AND_STEEL", "SHIELD",
-                "APPLE", "CARROT", "POTATO", "GOLDEN_CARROT", "BAKED_POTATO",
-                "BEETROOT", "BEETROOT_SEEDS", "MELON_SLICE", "PUMPKIN_SEEDS",
-                "WHEAT", "WHEAT_SEEDS", "SUGAR", "HONEY_BOTTLE", "HONEYCOMB",
-                "FIREWORK_ROCKET", "OAK_LOG", "SPRUCE_LOG", "BIRCH_LOG", "DARK_OAK_LOG",
-                "COBBLESTONE", "STONE", "DIRT", "COARSE_DIRT", "GRAVEL", "SAND",
-                "RED_SAND", "CLAY_BALL", "GRANITE", "DIORITE", "ANDESITE", "TUFF",
-                "CALCITE", "DEEPSLATE", "COBBLED_DEEPSLATE", "MOSS_BLOCK", "MUD",
-                "GLASS", "FLINT", "BRICK", "BONE", "BONE_MEAL", "INK_SAC",
-                "GLOW_INK_SAC", "WHITE_DYE", "ORANGE_DYE", "MAGENTA_DYE",
-                "LIGHT_BLUE_DYE", "YELLOW_DYE", "LIME_DYE", "PINK_DYE", "GRAY_DYE",
-                "LIGHT_GRAY_DYE", "CYAN_DYE", "PURPLE_DYE", "BLUE_DYE", "BROWN_DYE",
-                "GREEN_DYE", "RED_DYE", "BLACK_DYE", "LANTERN", "SOUL_LANTERN",
-                "CANDLE", "CHAIN", "BARREL", "CHEST", "NAME_TAG", "LEAD",
-                "SADDLE", "ITEM_FRAME", "GLOW_ITEM_FRAME", "ARMOR_STAND",
-                "POTION", "SPLASH_POTION", "LINGERING_POTION")); 
-        if (isExplorer(type.name())) pool.add("MAP");
+                "COAL", "IRON_NUGGET", "COPPER_INGOT", "REDSTONE", "LAPIS_LAZULI",
+                "ARROW", "STRING", "STICK", "TORCH", "BREAD", "APPLE",
+                "CARROT", "POTATO", "WHEAT", "LEATHER"));
         pool.addAll(dimensionCommonPool(environment));
         return pool;
     }
@@ -233,15 +215,10 @@ public final class MobLootGenerator {
     private static List<String> uncommonPool(EntityType type, World.Environment environment) {
         List<String> pool = new ArrayList<>(List.of(
                 "IRON_INGOT", "GOLD_INGOT", "EMERALD", "EXPERIENCE_BOTTLE",
-                "GOLDEN_CARROT", "ENDER_PEARL", "BOOK", "COMPASS", "ENCHANTED_BOOK",
-                "FLINT_AND_STEEL", "OBSIDIAN", "POTION", "SPLASH_POTION",
-                "LINGERING_POTION", "LANTERN", "SOUL_LANTERN", "NAME_TAG",
-                "SADDLE", "LEAD", "BELL", "HONEY_BOTTLE", "SLIME_BALL",
-                "IRON_PICKAXE", "IRON_AXE", "IRON_SHOVEL", "IRON_HOE",
-                "DIAMOND_HOE", "CROSSBOW", "SPYGLASS", "BRUSH", "GOAT_HORN",
-                "RECOVERY_COMPASS", "TRIDENT", "FISHING_ROD", "SHEARS",
-                "MAGMA_CREAM", "GLOW_INK_SAC", "WRITTEN_BOOK",
-                "MAGMA_CREAM", "GLOW_INK_SAC", "WRITTEN_BOOK"));
+                "GOLDEN_CARROT", "ENDER_PEARL", "ENCHANTED_BOOK", "OBSIDIAN",
+                "POTION", "SPLASH_POTION", "NAME_TAG", "SADDLE", "LEAD",
+                "SLIME_BALL", "IRON_PICKAXE", "IRON_AXE", "IRON_SHOVEL",
+                "CROSSBOW", "SPYGLASS", "GOAT_HORN", "TRIDENT", "MAGMA_CREAM"));
         if (isExplorer(type.name())) pool.add("MAP");
         pool.addAll(dimensionCommonPool(environment));
         return pool;
@@ -308,7 +285,6 @@ public final class MobLootGenerator {
         Enchantment enchantment = Registry.ENCHANTMENT.get(
                 NamespacedKey.minecraft(keys[random.nextInt(keys.length)]));
         if (enchantment != null) meta.addEnchant(enchantment, random.nextInt(1, 5), true);
-        meta.displayName(itemTitle("Enchanted " + title(item.getType().name()), NamedTextColor.AQUA));
         item.setItemMeta(meta);
         return item;
     }
@@ -316,32 +292,32 @@ public final class MobLootGenerator {
     private record EnchantmentRange(String id, int minimum, int maximum) { }
 
     private static final List<EnchantmentRange> CUSTOM_ENCHANTMENTS = List.of(
-            new EnchantmentRange("sharpness", 8, 12),
-            new EnchantmentRange("smite", 8, 12),
-            new EnchantmentRange("bane_of_arthropods", 8, 12),
-            new EnchantmentRange("power", 8, 12),
-            new EnchantmentRange("protection", 6, 8),
-            new EnchantmentRange("blast_protection", 5, 7),
-            new EnchantmentRange("fire_protection", 5, 7),
-            new EnchantmentRange("projectile_protection", 5, 7),
-            new EnchantmentRange("efficiency", 8, 10),
-            new EnchantmentRange("unbreaking", 6, 9),
-            new EnchantmentRange("fortune", 4, 6),
-            new EnchantmentRange("looting", 4, 6),
-            new EnchantmentRange("feather_falling", 6, 8),
-            new EnchantmentRange("respiration", 4, 6),
-            new EnchantmentRange("sweeping_edge", 4, 6),
-            new EnchantmentRange("fire_aspect", 2, 4),
-            new EnchantmentRange("knockback", 2, 4),
-            new EnchantmentRange("depth_strider", 4, 5),
-            new EnchantmentRange("thorns", 4, 5),
-            new EnchantmentRange("soul_speed", 4, 5),
-            new EnchantmentRange("swift_sneak", 4, 5),
-            new EnchantmentRange("quick_charge", 3, 5),
-            new EnchantmentRange("piercing", 4, 6),
-            new EnchantmentRange("impaling", 6, 8),
-            new EnchantmentRange("loyalty", 3, 5),
-            new EnchantmentRange("riptide", 3, 5)
+            new EnchantmentRange("sharpness", 10, 14),
+            new EnchantmentRange("smite", 10, 14),
+            new EnchantmentRange("bane_of_arthropods", 10, 14),
+            new EnchantmentRange("power", 10, 14),
+            new EnchantmentRange("protection", 8, 10),
+            new EnchantmentRange("blast_protection", 7, 9),
+            new EnchantmentRange("fire_protection", 7, 9),
+            new EnchantmentRange("projectile_protection", 7, 9),
+            new EnchantmentRange("efficiency", 10, 12),
+            new EnchantmentRange("unbreaking", 8, 10),
+            new EnchantmentRange("fortune", 6, 8),
+            new EnchantmentRange("looting", 6, 8),
+            new EnchantmentRange("feather_falling", 8, 10),
+            new EnchantmentRange("respiration", 6, 8),
+            new EnchantmentRange("sweeping_edge", 6, 8),
+            new EnchantmentRange("fire_aspect", 4, 6),
+            new EnchantmentRange("knockback", 4, 6),
+            new EnchantmentRange("depth_strider", 6, 7),
+            new EnchantmentRange("thorns", 6, 7),
+            new EnchantmentRange("soul_speed", 6, 7),
+            new EnchantmentRange("swift_sneak", 6, 7),
+            new EnchantmentRange("quick_charge", 5, 7),
+            new EnchantmentRange("piercing", 6, 8),
+            new EnchantmentRange("impaling", 8, 10),
+            new EnchantmentRange("loyalty", 5, 7),
+            new EnchantmentRange("riptide", 5, 7)
     );
 
     /**
@@ -416,7 +392,6 @@ public final class MobLootGenerator {
                                               int minimum, int maximum) {
         if (material == Material.POTION || material == Material.SPLASH_POTION
                 || material == Material.LINGERING_POTION) return randomPotion(material, random);
-        if (material == Material.WRITTEN_BOOK) return signedBook(random);
         if (material == Material.ENCHANTED_BOOK) return vanillaEnchantedBook(random);
         return stack(material, random, minimum, maximum);
     }
@@ -437,23 +412,6 @@ public final class MobLootGenerator {
         return potion;
     }
 
-    private static ItemStack signedBook(ThreadLocalRandom random) {
-        String[] titles = {"Field Notes", "Wanderer's Journal", "Old Trading Notes",
-                "Ruins Research", "Survival Notes", "Explorer's Log"};
-        String[] pages = {
-                "A few supplies were found nearby. Keep a compass and some food ready before travelling.",
-                "The Nether is dangerous. Bring fire resistance, sturdy armour and a way to return.",
-                "Ancient structures may contain useful templates, books and rare materials.",
-                "A quiet record of a traveller's route. The map is incomplete, but the notes may help."
-        };
-        ItemStack book = new ItemStack(Material.WRITTEN_BOOK);
-        BookMeta meta = (BookMeta) book.getItemMeta();
-        meta.setTitle(titles[random.nextInt(titles.length)]);
-        meta.setAuthor("Unknown Explorer");
-        meta.setPages(List.of(pages[random.nextInt(pages.length)]));
-        book.setItemMeta(meta);
-        return book;
-    }
 
     private static ItemStack customEquipment(UltraOPMobChestsPlugin plugin,
                                              ThreadLocalRandom random,
@@ -480,16 +438,7 @@ public final class MobLootGenerator {
     }
 
     private static ItemStack goldenFood(UltraOPMobChestsPlugin plugin, ThreadLocalRandom random) {
-        String[] ids = {"golden_potato", "golden_porkchop", "golden_bread"};
-        String[] names = {"Golden Potato", "Golden Porkchop", "Golden Bread"};
-        Material[] materials = {Material.BAKED_POTATO, Material.COOKED_PORKCHOP, Material.BREAD};
-        int index = random.nextInt(ids.length);
-        ItemStack item = taggedArtifact(plugin, ids[index], names[index], materials[index]);
-        ItemMeta meta = item.getItemMeta();
-        meta.displayName(itemTitle(names[index], NamedTextColor.GOLD));
-        meta.lore(List.of(itemLore("Rare golden food", NamedTextColor.GRAY)));
-        item.setItemMeta(meta);
-        return item;
+        return CustomItemFactory.createRandomFood(plugin, random);
     }
 
     private static ItemStack liquidGoldBucket(UltraOPMobChestsPlugin plugin) {
