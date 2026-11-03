@@ -26,9 +26,13 @@ public final class PluginSettings {
                 .anyMatch(name -> name.equalsIgnoreCase(type.name()));
     }
 
-    public float openingHeadLookDegrees() {
-        return Math.max(0.0F, Math.min(88.0F,
+    public float openingHeadPitchDegrees() {
+        return -Math.max(0.0F, Math.min(88.0F,
                 (float) Math.abs(config.getDouble("prototype.opening-head-look-degrees", 88.0))));
+    }
+
+    public float openingHeadLookDegrees() {
+        return Math.abs(openingHeadPitchDegrees());
     }
 
     public int openAnimationTicks() {
