@@ -90,29 +90,52 @@ def inside_ellipse(x: float, y: float, cx: float, cy: float, rx: float, ry: floa
 
 def food_mask(kind: str, x: int, y: int) -> bool:
     px, py = x + 0.5, y + 0.5
-    if kind in ("potato", "baked_potato"):
-        return inside_ellipse(px + (py - 8) * 0.10, py, 8, 8, 5.6, 4.2)
-    if kind in ("steak", "porkchop", "mutton", "rabbit"):
-        body = inside_ellipse(px, py, 7.5, 8, 5.8, 4.3)
-        notch = kind == "rabbit" and 3 <= x <= 5 and y <= 4
-        return body and not notch
-    if kind == "drumstick":
-        meat = inside_ellipse(px, py, 6.5, 7, 4.7, 4.1)
-        bone = (10 <= x <= 13 and 8 <= y <= 11) or (12 <= x <= 14 and 7 <= y <= 8)
+    if kind == "potato":
+        return inside_ellipse(px + (py - 8) * 0.10, py, 8, 8, 5.5, 4.0)
+    if kind == "baked_potato":
+        return inside_ellipse(px + (py - 8) * 0.10, py, 8, 8, 5.2, 3.8)
+    if kind == "steak":
+        rows = {4: (6, 9), 5: (4, 12), 6: (3, 13), 7: (2, 13),
+                8: (2, 14), 9: (3, 13), 10: (4, 12), 11: (6, 10)}
+        return y in rows and rows[y][0] <= x <= rows[y][1]
+    if kind == "porkchop":
+        meat = inside_ellipse(px, py, 7, 8, 4.5, 4.3)
+        bone = (11 <= x <= 13 and 5 <= y <= 10) or (12 <= x <= 14 and y in (5, 10))
         return meat or bone
+    if kind == "mutton":
+        body = inside_ellipse(px, py, 8, 8, 5.4, 4.1)
+        notch = 2 <= x <= 4 and y in (5, 6)
+        return body and not notch
+    if kind in ("drumstick", "rabbit"):
+        cx = 6.2 if kind == "drumstick" else 6.0
+        meat = inside_ellipse(px, py, cx, 7.0, 4.2 if kind == "drumstick" else 3.6, 4.0 if kind == "drumstick" else 3.3)
+        bone = 10 <= x <= 12 and 8 <= y <= 10
+        bone_tip = (12 <= x <= 14 and y in (7, 10)) or (13 <= x <= 14 and 8 <= y <= 9)
+        return meat or bone or bone_tip
     if kind == "bread":
-        return inside_ellipse(px, py, 8, 8, 6.0, 3.8) and not (x < 2 and y < 5)
+        rows = {4: (6, 9), 5: (4, 11), 6: (3, 12), 7: (3, 12),
+                8: (3, 12), 9: (3, 12), 10: (4, 11), 11: (5, 10)}
+        return y in rows and rows[y][0] <= x <= rows[y][1]
     if kind == "carrot":
-        body = 4 <= y <= 14 and abs(px - (8 + (y - 8) * 0.22)) <= (3.5 - (y - 4) * 0.19)
-        leaves = y <= 5 and ((x in (4, 5, 6) and y <= 3) or (8 <= x <= 10 and y <= 4) or (11 <= x <= 12 and y <= 2))
-        return body or leaves
+        leaves = (y <= 4 and ((2 <= x <= 5 and y <= 2)
+                              or (5 <= x <= 8 and y <= 3)
+                              or (8 <= x <= 11 and y <= 2)))
+        if 4 <= y <= 14:
+            center = 6.0 + (y - 4) * 0.35
+            half_width = max(0.7, 3.2 - (y - 4) * 0.23)
+            return leaves or abs(px - center) <= half_width
+        return leaves
     if kind in ("fish", "salmon"):
-        body = inside_ellipse(px, py, 7.5, 8, 5.1, 3.0)
-        tail = (x <= 3 and abs(py - 8) <= (x + 1) * 0.75)
-        fin = y in (4, 11) and 7 <= x <= 10
+        body = inside_ellipse(px, py, 8.5, 8, 4.8 if kind == "salmon" else 4.3, 3.2 if kind == "salmon" else 2.8)
+        tail = 2 <= x <= 4 and abs(py - 8) <= (x - 1) * 0.8
+        fin = (y in (4, 11) and 7 <= x <= 10) if kind == "salmon" else (y in (5, 10) and 7 <= x <= 9)
         return body or tail or fin
     if kind == "pie":
-        return 2 <= x <= 14 and 3 <= y <= 13 and x >= 14 - (y - 3) * 0.8 and x >= 2 + (y - 3) * 0.15
+        if not 3 <= y <= 13:
+            return False
+        left = 3 + int((y - 3) * 0.35)
+        right = 14 - int((y - 3) * 0.22)
+        return left <= x <= right
     return inside_ellipse(px, py, 8, 8, 5.5, 4.0)
 
 
