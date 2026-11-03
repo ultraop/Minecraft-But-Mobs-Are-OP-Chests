@@ -142,8 +142,6 @@ public final class LiquidGoldService implements Listener {
                         net.kyori.adventure.text.format.NamedTextColor.GRAY)
                         .decoration(net.kyori.adventure.text.format.TextDecoration.ITALIC,
                                 net.kyori.adventure.text.format.TextDecoration.State.FALSE)));
-        meta.getPersistentDataContainer().set(plugin.getNamespacedKey("liquid_gold_bucket"),
-                PersistentDataType.BYTE, (byte) 1);
         meta.getPersistentDataContainer().set(new NamespacedKey(plugin, "custom_fluid_id"),
                 PersistentDataType.STRING, "liquid_gold");
         item.setItemMeta(meta);
