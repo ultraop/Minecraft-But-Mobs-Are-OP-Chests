@@ -138,9 +138,8 @@ public final class MobLootGenerator {
                     "AMETHYST_SHARD", "EXPERIENCE_BOTTLE", "POTION", "SPLASH_POTION")), random, 1, 2);
             case EPIC -> random.nextBoolean()
                     ? customEnchantmentTome(plugin, random)
-                    : artifact(plugin, random, "Epic");
-            case LEGENDARY -> artifact(plugin, random, "Legendary");
-            case MYTHIC -> artifact(plugin, random, "Mythic");
+                    : artifact(plugin, random);
+            case LEGENDARY, MYTHIC -> artifact(plugin, random);
         };
     }
 
@@ -249,7 +248,7 @@ public final class MobLootGenerator {
 
     private static boolean isExplorer(String typeName) {
         return List.of("VILLAGER", "WANDERING_TRADER", "TRADER_LLAMA",
-                "DONKEY", "MULE", "LLAMA", "PARROT").contains(typeName);
+                "DONKEY", "MULE", "LLAMA").contains(typeName);
     }
 
     private static List<String> dimensionRarePool(World.Environment environment) {
@@ -479,7 +478,7 @@ public final class MobLootGenerator {
     }
 
     private static ItemStack artifact(UltraOPMobChestsPlugin plugin,
-                                      ThreadLocalRandom random, String rarityLabel) {
+                                      ThreadLocalRandom random) {
         String[] ids = {"skull_scepter", "abyssal_heart", "warden_echo_relic",
                 "dragon_wing_plate", "dragon_blast"};
         String[] names = {"Skull Scepter", "Abyssal Heart", "Warden Echo Relic",
