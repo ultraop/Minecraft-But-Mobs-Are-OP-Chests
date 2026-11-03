@@ -1,0 +1,759 @@
+package in.ultraop.mobchests.fluid;
+
+import in.ultraop.mobchests.UltraOPMobChestsPlugin;
+import org.bukkit.Bukkit;
+import org.bukkit.Color;
+import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
+import org.bukkit.Particle;
+import org.bukkit.Sound;
+import org.bukkit.World;
+import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
+import org.bukkit.block.data.BlockData;
+import org.bukkit.block.data.Levelled;
+import org.bukkit.entity.Display;
+import org.bukkit.entity.ItemDisplay;
+import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.Listener;
+import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockFadeEvent;
+import org.bukkit.event.block.BlockFromToEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.block.BlockPistonExtendEvent;
+import org.bukkit.event.block.BlockPistonRetractEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.world.ChunkLoadEvent;
+import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataContainer;
+import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
+import org.bukkit.scheduler.BukkitTask;
+
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+
+/**
+ * Water-physics-backed Liquid Gold simulation.
+ *
+ * Vanilla WATER supplies swimming and collision. Natural water flow is cancelled
+ * and recalculated by this service. Persistent ItemDisplay overlays use a
+ * companion 26.3 resource pack to show a translucent golden surface without
+ * changing normal water or lava textures.
+ */
+public final class LiquidGoldService implements Listener {
+    private static final BlockFace[] HORIZONTAL = {
+            BlockFace.NORTH, BlockFace.SOUTH, BlockFace.EAST, BlockFace.WEST
+    };
+
+    private final UltraOPMobChestsPlugin plugin;
+    private final NamespacedKey fluidItemKey;
+    private final NamespacedKey displayMarkerKey;
+    private final NamespacedKey displaySourceKey;
+    private final NamespacedKey displayLevelKey;
+    private final NamespacedKey displayXKey;
+    private final NamespacedKey displayYKey;
+    private final NamespacedKey displayZKey;
+
+    private final Map<FluidKey, FluidCell> cells = new HashMap<>();
+    private final Set<FluidKey> sources = new HashSet<>();
+    private final Set<UUID> insidePlayers = new HashSet<>();
+    private final Map<UUID, Long> lastPowerAt = new HashMap<>();
+
+    private BukkitTask flowTask;
+    private long tickCounter;
+
+    public LiquidGoldService(UltraOPMobChestsPlugin plugin) {
+        this.plugin = plugin;
+        this.fluidItemKey = new NamespacedKey(plugin, "custom_fluid_id");
+        this.displayMarkerKey = new NamespacedKey(plugin, "liquid_gold_cell");
+        this.displaySourceKey = new NamespacedKey(plugin, "liquid_gold_source");
+        this.displayLevelKey = new NamespacedKey(plugin, "liquid_gold_level");
+        this.displayXKey = new NamespacedKey(plugin, "liquid_gold_x");
+        this.displayYKey = new NamespacedKey(plugin, "liquid_gold_y");
+        this.displayZKey = new NamespacedKey(plugin, "liquid_gold_z");
+    }
+
+    public void start() {
+        scanLoadedChunks();
+        flowTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            tickCounter += 10L;
+            recalculateFlow();
+        }, 10L, Math.max(5L, plugin.getConfig().getLong("liquid-gold.flow-interval-ticks", 10L)));
+    }
+
+    public void shutdown() {
+        if (flowTask != null) {
+            flowTask.cancel();
+            flowTask = null;
+        }
+        // Do not remove the water blocks or persistent display entities. Their
+        // source/level metadata is stored on each display and is restored on
+        // plugin enable or chunk load.
+        cells.clear();
+        sources.clear();
+        insidePlayers.clear();
+        lastPowerAt.clear();
+    }
+
+    public static boolean isLiquidGoldBucket(ItemStack item, UltraOPMobChestsPlugin plugin) {
+        if (item == null || item.getType().isAir() || !item.hasItemMeta()) return false;
+        String id = item.getItemMeta().getPersistentDataContainer().get(
+                new NamespacedKey(plugin, "custom_fluid_id"), PersistentDataType.STRING);
+        return "liquid_gold".equals(id);
+    }
+
+    public static ItemStack createBucket(UltraOPMobChestsPlugin plugin) {
+        ItemStack item = new ItemStack(Material.BUCKET);
+        ItemMeta meta = item.getItemMeta();
+        meta.setItemModel(new NamespacedKey(plugin, "liquid_gold_bucket"));
+        meta.setMaxStackSize(1);
+        meta.displayName(net.kyori.adventure.text.Component.text("Liquid Gold Bucket",
+                net.kyori.adventure.text.format.NamedTextColor.GOLD)
+                .decoration(net.kyori.adventure.text.format.TextDecoration.ITALIC,
+                        net.kyori.adventure.text.format.TextDecoration.State.FALSE)
+                .decoration(net.kyori.adventure.text.format.TextDecoration.BOLD,
+                        net.kyori.adventure.text.format.TextDecoration.State.TRUE));
+        meta.lore(List.of(
+                net.kyori.adventure.text.Component.text("Golden water-like fluid",
+                        net.kyori.adventure.text.format.NamedTextColor.YELLOW)
+                        .decoration(net.kyori.adventure.text.format.TextDecoration.ITALIC,
+                                net.kyori.adventure.text.format.TextDecoration.State.FALSE),
+                net.kyori.adventure.text.Component.text("Place on a block to pour; right-click air to drink.",
+                        net.kyori.adventure.text.format.NamedTextColor.GRAY)
+                        .decoration(net.kyori.adventure.text.format.TextDecoration.ITALIC,
+                                net.kyori.adventure.text.format.TextDecoration.State.FALSE),
+                net.kyori.adventure.text.Component.text("Collect a source with an empty bucket.",
+                        net.kyori.adventure.text.format.NamedTextColor.GRAY)
+                        .decoration(net.kyori.adventure.text.format.TextDecoration.ITALIC,
+                                net.kyori.adventure.text.format.TextDecoration.State.FALSE)));
+        meta.getPersistentDataContainer().set(plugin.getNamespacedKey("liquid_gold_bucket"),
+                PersistentDataType.BYTE, (byte) 1);
+        meta.getPersistentDataContainer().set(new NamespacedKey(plugin, "custom_fluid_id"),
+                PersistentDataType.STRING, "liquid_gold");
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onBucketUse(PlayerInteractEvent event) {
+        if (event.getHand() != EquipmentSlot.HAND) {
+            if (event.getHand() == EquipmentSlot.OFF_HAND
+                    && isLiquidGoldBucket(event.getItem(), plugin)) {
+                event.setCancelled(true);
+            }
+            return;
+        }
+
+        if (event.getAction() != org.bukkit.event.block.Action.RIGHT_CLICK_AIR
+                && event.getAction() != org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK) return;
+
+        Player player = event.getPlayer();
+        ItemStack held = player.getInventory().getItemInMainHand();
+
+        if (isLiquidGoldBucket(held, plugin)) {
+            // RIGHT_CLICK_AIR is commonly pre-cancelled by Paper because a
+            // vanilla bucket has no default air-use action; this custom action
+            // intentionally handles it as drinking.
+            if (event.getAction() == org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK
+                    && event.isCancelled()) return;
+
+            event.setCancelled(true);
+            if (event.getAction() == org.bukkit.event.block.Action.RIGHT_CLICK_AIR) {
+                drink(player);
+            } else {
+                pour(player, event);
+            }
+            return;
+        }
+
+        if (held.getType() == Material.BUCKET
+                && event.getAction() == org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK
+                && event.getClickedBlock() != null) {
+            FluidKey clicked = key(event.getClickedBlock());
+            FluidCell cell = cells.get(clicked);
+            if (cell != null) {
+                event.setCancelled(true);
+                if (!cell.source) {
+                    player.sendActionBar("Only a Liquid Gold source can be collected.");
+                    return;
+                }
+                scoop(player, clicked);
+            }
+        }
+    }
+
+    private void pour(Player player, PlayerInteractEvent event) {
+        Block clicked = event.getClickedBlock();
+        if (clicked == null) {
+            drink(player);
+            return;
+        }
+
+        Block target = clicked.getRelative(event.getBlockFace());
+        FluidKey key = key(target);
+        if (cells.containsKey(key) || !canReplaceForFluid(target)) {
+            player.sendActionBar("There is no space to pour Liquid Gold here.");
+            return;
+        }
+
+        ItemStack held = player.getInventory().getItemInMainHand();
+        BlockPlaceEvent placeEvent = new BlockPlaceEvent(
+                target, target.getState(), clicked, held.clone(), player, true, EquipmentSlot.HAND);
+        Bukkit.getPluginManager().callEvent(placeEvent);
+        if (placeEvent.isCancelled() || !placeEvent.canBuild()) {
+            player.sendActionBar("You cannot place Liquid Gold at this location.");
+            return;
+        }
+
+        placeWater(target, 0);
+        sources.add(key);
+        cells.put(key, new FluidCell(0, true, null));
+        consumeFilledBucket(player);
+        player.playSound(target.getLocation(), Sound.ITEM_BUCKET_EMPTY, 0.9F, 1.15F);
+        player.spawnParticle(Particle.DUST, target.getLocation().add(0.5, 0.72, 0.5),
+                8, 0.24, 0.08, 0.24, new Particle.DustOptions(Color.fromRGB(255, 211, 66), 1.15F));
+        recalculateFlow();
+    }
+
+    private void scoop(Player player, FluidKey key) {
+        FluidCell cell = cells.get(key);
+        if (cell == null || !cell.source) return;
+
+        Block block = getBlock(key);
+        if (block == null || block.getType() != Material.WATER) {
+            player.sendActionBar("This Liquid Gold source is not available.");
+            return;
+        }
+
+        removeCell(key, true);
+        consumeEmptyBucket(player);
+        giveItem(player, createBucket(plugin));
+        player.playSound(block.getLocation(), Sound.ITEM_BUCKET_FILL, 0.9F, 1.1F);
+        recalculateFlow();
+    }
+
+    private void drink(Player player) {
+        consumeFilledBucket(player);
+        applyGoldenSurge(player);
+        player.playSound(player.getLocation(), Sound.ENTITY_GENERIC_DRINK, 0.85F, 1.0F);
+        player.sendActionBar("§6Liquid Gold consumed — golden powers for 10 seconds!");
+        player.getWorld().spawnParticle(Particle.DUST, player.getLocation().add(0, 1.0, 0),
+                18, 0.35, 0.45, 0.35, new Particle.DustOptions(Color.fromRGB(255, 214, 64), 1.35F));
+    }
+
+    private void consumeFilledBucket(Player player) {
+        ItemStack hand = player.getInventory().getItemInMainHand();
+        if (hand.getAmount() <= 1) {
+            player.getInventory().setItemInMainHand(new ItemStack(Material.BUCKET));
+        } else {
+            hand.setAmount(hand.getAmount() - 1);
+            player.getInventory().setItemInMainHand(hand);
+            giveItem(player, new ItemStack(Material.BUCKET));
+        }
+    }
+
+    private void consumeEmptyBucket(Player player) {
+        ItemStack hand = player.getInventory().getItemInMainHand();
+        if (hand.getAmount() <= 1) {
+            player.getInventory().setItemInMainHand(new ItemStack(Material.AIR));
+        } else {
+            hand.setAmount(hand.getAmount() - 1);
+            player.getInventory().setItemInMainHand(hand);
+        }
+    }
+
+    private void giveItem(Player player, ItemStack item) {
+        Map<Integer, ItemStack> leftovers = player.getInventory().addItem(item);
+        leftovers.values().forEach(stack -> player.getWorld().dropItemNaturally(player.getLocation(), stack));
+    }
+
+    private void applyGoldenSurge(Player player) {
+        int ticks = Math.max(20, plugin.getConfig().getInt("liquid-gold.effects-duration-ticks", 200));
+        addEffect(player, PotionEffectType.REGENERATION, 1, ticks);
+        addEffect(player, PotionEffectType.SPEED, 1, ticks);
+        addEffect(player, PotionEffectType.STRENGTH, 1, ticks);
+        addEffect(player, PotionEffectType.RESISTANCE, 0, ticks);
+        addEffect(player, PotionEffectType.FIRE_RESISTANCE, 0, ticks);
+        addEffect(player, PotionEffectType.WATER_BREATHING, 0, ticks);
+        addEffect(player, PotionEffectType.HASTE, 1, ticks);
+        addEffect(player, PotionEffectType.JUMP_BOOST, 1, ticks);
+        addEffect(player, PotionEffectType.ABSORPTION, 1, ticks);
+        addEffect(player, PotionEffectType.NIGHT_VISION, 0, ticks);
+        addEffect(player, PotionEffectType.SLOW_FALLING, 0, ticks);
+        addEffect(player, PotionEffectType.DOLPHINS_GRACE, 1, ticks);
+        addEffect(player, PotionEffectType.CONDUIT_POWER, 0, ticks);
+    }
+
+    private void addEffect(Player player, PotionEffectType type, int amplifier, int duration) {
+        player.addPotionEffect(new PotionEffect(type, duration, amplifier, false, false, true), true);
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onPlayerMove(PlayerMoveEvent event) {
+        if (!event.hasChangedPosition() || event.getTo() == null) return;
+        Player player = event.getPlayer();
+        UUID id = player.getUniqueId();
+        boolean touching = intersectsFluid(player.getBoundingBox(), player.getWorld().getUID());
+        if (!touching) {
+            insidePlayers.remove(id);
+            return;
+        }
+
+        long now = System.currentTimeMillis();
+        long last = lastPowerAt.getOrDefault(id, 0L);
+        if (!insidePlayers.contains(id) || now - last >= 4_000L) {
+            insidePlayers.add(id);
+            lastPowerAt.put(id, now);
+            applyGoldenSurge(player);
+            player.sendActionBar("§6Liquid Gold — golden powers active!");
+        }
+    }
+
+    private boolean intersectsFluid(org.bukkit.util.BoundingBox box, UUID worldId) {
+        int minX = floor(box.getMinX());
+        int maxX = floor(box.getMaxX());
+        int minY = floor(box.getMinY());
+        int maxY = floor(box.getMaxY());
+        int minZ = floor(box.getMinZ());
+        int maxZ = floor(box.getMaxZ());
+        for (int x = minX; x <= maxX; x++) {
+            for (int y = minY; y <= maxY; y++) {
+                for (int z = minZ; z <= maxZ; z++) {
+                    if (cells.containsKey(new FluidKey(worldId, x, y, z))) return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private int floor(double value) {
+        return (int) Math.floor(value);
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        UUID id = event.getPlayer().getUniqueId();
+        insidePlayers.remove(id);
+        lastPowerAt.remove(id);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onVanillaFluidFlow(BlockFromToEvent event) {
+        if (cells.containsKey(key(event.getBlock()))) event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onFluidFreeze(BlockFadeEvent event) {
+        if (cells.containsKey(key(event.getBlock()))) event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onFluidBreak(BlockBreakEvent event) {
+        if (!cells.containsKey(key(event.getBlock()))) return;
+        event.setCancelled(true);
+        event.getPlayer().sendActionBar("Collect Liquid Gold with an empty bucket from a source block.");
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onPlaceIntoFluid(BlockPlaceEvent event) {
+        if (cells.containsKey(key(event.getBlockPlaced()))) event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onPistonExtend(BlockPistonExtendEvent event) {
+        if (event.getBlocks().stream().anyMatch(block -> cells.containsKey(key(block)))) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onPistonRetract(BlockPistonRetractEvent event) {
+        if (event.getBlocks().stream().anyMatch(block -> cells.containsKey(key(block)))) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onChunkLoad(ChunkLoadEvent event) {
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            scanChunk(event.getChunk());
+            recalculateFlow();
+        });
+    }
+
+    private void scanLoadedChunks() {
+        for (World world : Bukkit.getWorlds()) {
+            for (org.bukkit.Chunk chunk : world.getLoadedChunks()) scanChunk(chunk);
+        }
+        recalculateFlow();
+    }
+
+    private void scanChunk(org.bukkit.Chunk chunk) {
+        for (org.bukkit.entity.Entity entity : chunk.getEntities()) {
+            if (!(entity instanceof ItemDisplay display)) continue;
+            PersistentDataContainer data = display.getPersistentDataContainer();
+            Byte marked = data.get(displayMarkerKey, PersistentDataType.BYTE);
+            if (marked == null || marked == 0) continue;
+
+            Integer x = data.get(displayXKey, PersistentDataType.INTEGER);
+            Integer y = data.get(displayYKey, PersistentDataType.INTEGER);
+            Integer z = data.get(displayZKey, PersistentDataType.INTEGER);
+            Integer level = data.get(displayLevelKey, PersistentDataType.INTEGER);
+            Byte isSource = data.get(displaySourceKey, PersistentDataType.BYTE);
+            if (x == null || y == null || z == null || level == null || isSource == null) {
+                display.remove();
+                continue;
+            }
+
+            FluidKey key = new FluidKey(chunk.getWorld().getUID(), x, y, z);
+            Block block = chunk.getWorld().getBlockAt(x, y, z);
+            if (block.getType() != Material.WATER && (block.isEmpty() || block.isPassable())) {
+                placeWater(block, Math.max(0, Math.min(8, level)));
+            }
+            if (block.getType() != Material.WATER) {
+                display.remove();
+                cells.remove(key);
+                sources.remove(key);
+                continue;
+            }
+
+            FluidCell previous = cells.put(key,
+                    new FluidCell(level, isSource != 0, display.getUniqueId()));
+            if (isSource != 0) sources.add(key);
+            else sources.remove(key);
+
+            // Remove stale duplicate visual cells at the same block position.
+            if (previous != null && previous.displayId != null
+                    && !previous.displayId.equals(display.getUniqueId())) {
+                org.bukkit.entity.Entity old = Bukkit.getEntity(previous.displayId);
+                if (old != null) old.remove();
+            }
+            display.setItemStack(fluidDisplayItem(level));
+        }
+    }
+
+    private void recalculateFlow() {
+        if (!plugin.getConfig().getBoolean("liquid-gold.enabled", true)) return;
+        applyDiagonalInfiniteSources();
+
+        Map<FluidKey, FlowState> desired = new HashMap<>();
+        int totalLimit = Math.max(64, plugin.getConfig().getInt("liquid-gold.max-active-cells", 2048));
+        int horizontalRange = Math.max(1, Math.min(12,
+                plugin.getConfig().getInt("liquid-gold.horizontal-range", 7)));
+        int verticalRange = Math.max(1, Math.min(16,
+                plugin.getConfig().getInt("liquid-gold.vertical-range", 8)));
+
+        for (FluidKey source : new ArrayList<>(sources)) {
+            if (desired.size() >= totalLimit || !isChunkLoaded(source)) continue;
+            buildFromSource(source, desired, horizontalRange, verticalRange, totalLimit);
+        }
+
+        Iterator<Map.Entry<FluidKey, FluidCell>> iterator = cells.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<FluidKey, FluidCell> entry = iterator.next();
+            FluidKey key = entry.getKey();
+            if (!isChunkLoaded(key)) continue;
+            if (desired.containsKey(key)) continue;
+            clearCell(key, entry.getValue());
+            if (entry.getValue().source) sources.remove(key);
+            iterator.remove();
+        }
+
+        for (Map.Entry<FluidKey, FlowState> entry : desired.entrySet()) {
+            FluidKey key = entry.getKey();
+            if (!isChunkLoaded(key)) continue;
+            Block block = getBlock(key);
+            if (block == null) continue;
+
+            FluidCell old = cells.get(key);
+            if (old == null && !canReplaceForFluid(block)) continue;
+            if (old != null && block.getType() != Material.WATER
+                    && !canReplaceForFluid(block)) continue;
+
+            FlowState state = entry.getValue();
+            placeWater(block, state.level);
+            boolean source = sources.contains(key);
+            ensureDisplay(key, state.level, source);
+        }
+    }
+
+    private void buildFromSource(FluidKey source, Map<FluidKey, FlowState> desired,
+                                 int horizontalRange, int verticalRange, int totalLimit) {
+        World world = Bukkit.getWorld(source.worldId);
+        if (world == null) return;
+
+        ArrayDeque<FlowNode> queue = new ArrayDeque<>();
+        Set<FluidKey> visited = new HashSet<>();
+        queue.add(new FlowNode(source, 0, 0, 0, false));
+
+        while (!queue.isEmpty() && desired.size() < totalLimit) {
+            FlowNode node = queue.removeFirst();
+            if (!visited.add(node.key) || !isChunkLoaded(node.key)) continue;
+
+            Block currentBlock = world.getBlockAt(node.key.x, node.key.y, node.key.z);
+            FluidCell existing = cells.get(node.key);
+            if (currentBlock.getType() != Material.WATER
+                    && existing == null && !canReplaceForFluid(currentBlock)) continue;
+
+            FlowState candidate = new FlowState(node.level, sources.contains(node.key));
+            FlowState previous = desired.get(node.key);
+            if (previous == null || node.level < previous.level) desired.put(node.key, candidate);
+
+            Block below = currentBlock.getRelative(BlockFace.DOWN);
+            FluidKey belowKey = key(below);
+            boolean canFall = node.downDepth < verticalRange && isChunkLoaded(belowKey)
+                    && canFlowInto(below, belowKey);
+            if (canFall) {
+                queue.addLast(new FlowNode(belowKey, 8,
+                        node.downDepth + 1, node.horizontalDepth, true));
+                continue;
+            }
+
+            if (node.horizontalDepth >= horizontalRange) continue;
+            int nextLevel = node.falling ? 1 : (node.level == 0 ? 1 : node.level + 1);
+            if (nextLevel > 7) continue;
+
+            for (BlockFace face : HORIZONTAL) {
+                Block next = currentBlock.getRelative(face);
+                FluidKey nextKey = key(next);
+                if (!isChunkLoaded(nextKey) || !canFlowInto(next, nextKey)) continue;
+                queue.addLast(new FlowNode(nextKey, nextLevel,
+                        node.downDepth, node.horizontalDepth + 1, false));
+            }
+        }
+    }
+
+    private void applyDiagonalInfiniteSources() {
+        if (!plugin.getConfig().getBoolean("liquid-gold.diagonal-infinite-source", true)
+                || sources.size() < 2) return;
+
+        Set<FluidKey> additions = new HashSet<>();
+        for (FluidKey source : new ArrayList<>(sources)) {
+            for (int baseX = source.x - 1; baseX <= source.x; baseX++) {
+                for (int baseZ = source.z - 1; baseZ <= source.z; baseZ++) {
+                    FluidKey northWest = new FluidKey(source.worldId, baseX, source.y, baseZ);
+                    FluidKey northEast = new FluidKey(source.worldId, baseX + 1, source.y, baseZ);
+                    FluidKey southWest = new FluidKey(source.worldId, baseX, source.y, baseZ + 1);
+                    FluidKey southEast = new FluidKey(source.worldId, baseX + 1, source.y, baseZ + 1);
+
+                    boolean diagonal = (sources.contains(northWest) && sources.contains(southEast))
+                            || (sources.contains(northEast) && sources.contains(southWest));
+                    if (!diagonal) continue;
+
+                    List<FluidKey> corners = List.of(northWest, northEast, southWest, southEast);
+                    boolean supported = true;
+                    for (FluidKey corner : corners) {
+                        if (!isChunkLoaded(corner)) {
+                            supported = false;
+                            break;
+                        }
+                        Block floor = getBlock(corner);
+                        if (floor == null || !floor.getRelative(BlockFace.DOWN).getType().isSolid()) {
+                            supported = false;
+                            break;
+                        }
+                    }
+                    if (!supported) continue;
+
+                    for (FluidKey corner : corners) {
+                        if (sources.contains(corner)) continue;
+                        Block target = getBlock(corner);
+                        if (target != null && (target.getType() == Material.WATER
+                                || canReplaceForFluid(target))) additions.add(corner);
+                    }
+                }
+            }
+        }
+
+        for (FluidKey key : additions) {
+            sources.add(key);
+            cells.put(key, new FluidCell(0, true, null));
+        }
+    }
+
+    private void ensureDisplay(FluidKey key, int level, boolean source) {
+        FluidCell cell = cells.get(key);
+        ItemDisplay display = null;
+        if (cell != null && cell.displayId != null) {
+            org.bukkit.entity.Entity entity = Bukkit.getEntity(cell.displayId);
+            if (entity instanceof ItemDisplay itemDisplay && entity.isValid()) display = itemDisplay;
+        }
+
+        World world = Bukkit.getWorld(key.worldId);
+        if (world == null) return;
+        Block block = world.getBlockAt(key.x, key.y, key.z);
+
+        if (display == null) {
+            display = world.spawn(block.getLocation().add(0.5, 0.5, 0.5),
+                    ItemDisplay.class, spawned -> {
+                        spawned.setPersistent(true);
+                        spawned.setInvulnerable(true);
+                        spawned.setSilent(true);
+                        spawned.setGravity(false);
+                        spawned.setBillboard(Display.Billboard.FIXED);
+                        spawned.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.FIXED);
+                        spawned.setViewRange(1.0F);
+                        spawned.setShadowRadius(0.0F);
+                        spawned.setShadowStrength(0.0F);
+                        spawned.setDisplayWidth(1.0F);
+                        spawned.setDisplayHeight(1.0F);
+                    });
+        }
+
+        display.setItemStack(fluidDisplayItem(level));
+        PersistentDataContainer data = display.getPersistentDataContainer();
+        data.set(displayMarkerKey, PersistentDataType.BYTE, (byte) 1);
+        data.set(displaySourceKey, PersistentDataType.BYTE, (byte) (source ? 1 : 0));
+        data.set(displayLevelKey, PersistentDataType.INTEGER, level);
+        data.set(displayXKey, PersistentDataType.INTEGER, key.x);
+        data.set(displayYKey, PersistentDataType.INTEGER, key.y);
+        data.set(displayZKey, PersistentDataType.INTEGER, key.z);
+        cells.put(key, new FluidCell(level, source, display.getUniqueId()));
+    }
+
+    private ItemStack fluidDisplayItem(int level) {
+        int modelLevel = level >= 8 ? 0 : Math.max(0, Math.min(7, level));
+        ItemStack item = new ItemStack(Material.YELLOW_STAINED_GLASS);
+        ItemMeta meta = item.getItemMeta();
+        meta.setItemModel(new NamespacedKey(plugin, "liquid_gold_flow_" + modelLevel));
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private void placeWater(Block block, int level) {
+        BlockData data = Material.WATER.createBlockData();
+        if (data instanceof Levelled levelled) {
+            levelled.setLevel(Math.max(0, Math.min(8, level)));
+            block.setBlockData(levelled, false);
+        } else {
+            block.setType(Material.WATER, false);
+        }
+    }
+
+    private void clearCell(FluidKey key, FluidCell cell) {
+        Block block = getBlock(key);
+        if (block != null && block.getType() == Material.WATER) {
+            block.setType(Material.AIR, false);
+        }
+        if (cell.displayId != null) {
+            org.bukkit.entity.Entity entity = Bukkit.getEntity(cell.displayId);
+            if (entity != null) entity.remove();
+        }
+    }
+
+    private void removeCell(FluidKey key, boolean clearBlock) {
+        FluidCell cell = cells.remove(key);
+        sources.remove(key);
+        if (cell == null) return;
+        if (clearBlock) clearCell(key, cell);
+    }
+
+    private boolean canFlowInto(Block block, FluidKey key) {
+        if (cells.containsKey(key)) return block.getType() == Material.WATER;
+        return canReplaceForFluid(block);
+    }
+
+    private boolean canReplaceForFluid(Block block) {
+        if (block.getType() == Material.WATER || block.isLiquid()) return false;
+        return block.isEmpty() || block.isPassable();
+    }
+
+    private boolean isChunkLoaded(FluidKey key) {
+        World world = Bukkit.getWorld(key.worldId);
+        if (world == null) return false;
+        return world.isChunkLoaded(key.x >> 4, key.z >> 4);
+    }
+
+    private Block getBlock(FluidKey key) {
+        World world = Bukkit.getWorld(key.worldId);
+        if (world == null || !world.isChunkLoaded(key.x >> 4, key.z >> 4)) return null;
+        return world.getBlockAt(key.x, key.y, key.z);
+    }
+
+    private FluidKey key(Block block) {
+        return new FluidKey(block.getWorld().getUID(), block.getX(), block.getY(), block.getZ());
+    }
+
+    private void scanLoadedChunks() {
+        for (World world : Bukkit.getWorlds()) {
+            for (org.bukkit.Chunk chunk : world.getLoadedChunks()) scanChunk(chunk);
+        }
+    }
+
+    private void scanChunk(org.bukkit.Chunk chunk) {
+        for (org.bukkit.entity.Entity entity : chunk.getEntities()) {
+            if (!(entity instanceof ItemDisplay display)) continue;
+            PersistentDataContainer data = display.getPersistentDataContainer();
+            Byte marker = data.get(displayMarkerKey, PersistentDataType.BYTE);
+            if (marker == null || marker == 0) continue;
+            Integer x = data.get(displayXKey, PersistentDataType.INTEGER);
+            Integer y = data.get(displayYKey, PersistentDataType.INTEGER);
+            Integer z = data.get(displayZKey, PersistentDataType.INTEGER);
+            Integer level = data.get(displayLevelKey, PersistentDataType.INTEGER);
+            Byte source = data.get(displaySourceKey, PersistentDataType.BYTE);
+            if (x == null || y == null || z == null || level == null || source == null) {
+                display.remove();
+                continue;
+            }
+
+            FluidKey key = new FluidKey(chunk.getWorld().getUID(), x, y, z);
+            Block block = chunk.getWorld().getBlockAt(x, y, z);
+            if (block.getType() != Material.WATER && canReplaceForFluid(block)) {
+                placeWater(block, level);
+            }
+            if (block.getType() != Material.WATER) {
+                display.remove();
+                continue;
+            }
+            FluidCell previous = cells.put(key,
+                    new FluidCell(level, source != 0, display.getUniqueId()));
+            if (source != 0) sources.add(key);
+            if (previous != null && previous.displayId != null
+                    && !previous.displayId.equals(display.getUniqueId())) {
+                org.bukkit.entity.Entity old = Bukkit.getEntity(previous.displayId);
+                if (old != null) old.remove();
+            }
+        }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onChunkLoad(ChunkLoadEvent event) {
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            scanChunk(event.getChunk());
+            recalculateFlow();
+        });
+    }
+
+    private record FluidKey(UUID worldId, int x, int y, int z) { }
+    private record FlowState(int level, boolean source) { }
+    private record FlowNode(FluidKey key, int level, int downDepth,
+                            int horizontalDepth, boolean falling) { }
+
+    private static final class FluidCell {
+        private final int level;
+        private final boolean source;
+        private final UUID displayId;
+
+        private FluidCell(int level, boolean source, UUID displayId) {
+            this.level = level;
+            this.source = source;
+            this.displayId = displayId;
+        }
+    }
+}
