@@ -91,7 +91,7 @@ public final class LiquidGoldService implements Listener {
 
     public void start() {
         scanLoadedChunks();
-        long interval = Math.max(2L, plugin.getConfig().getLong("liquid-gold.flow-interval-ticks", 4L));
+        long interval = Math.max(2L, plugin.getConfig().getLong("liquid-gold.flow-interval-ticks", 5L));
         flowTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
             simulationTick++;
             recalculateFlow();
