@@ -271,6 +271,9 @@ public final class LiquidGoldService implements Listener {
 
             elapsed[0] += 4;
             if (elapsed[0] < drinkTicks) {
+                if (elapsed[0] % 8 == 0) {
+                    player.playSound(player.getLocation(), Sound.ENTITY_GENERIC_DRINK, 0.55F, 0.95F);
+                }
                 player.sendActionBar("§6Drinking Liquid Gold...");
                 return;
             }
