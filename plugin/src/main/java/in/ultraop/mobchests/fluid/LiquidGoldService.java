@@ -124,7 +124,7 @@ public final class LiquidGoldService implements Listener {
     }
 
     public static ItemStack createBucket(UltraOPMobChestsPlugin plugin) {
-        ItemStack item = new ItemStack(Material.BUCKET);
+        ItemStack item = new ItemStack(Material.LAVA_BUCKET);
         ItemMeta meta = item.getItemMeta();
         meta.setItemModel(new NamespacedKey(plugin, "liquid_gold_bucket"));
         meta.setMaxStackSize(1);
