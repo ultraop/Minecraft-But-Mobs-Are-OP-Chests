@@ -28,7 +28,7 @@
 - [ ] Successful application consumes one custom book and the item retains its enchantment after relog/restart.
 - [ ] Custom book tooltip has no untranslated enchantment.level.N line.
 - [ ] Normal Vanilla Enchanted Books still work in an anvil.
-- [ ] Old custom books with stored high levels have their legacy stored entry removed and applied level clamped to 15.
+- [ ] Old custom books with stored high levels have their legacy stored entry removed and applied level clamped to the enchantment-specific maximum (Respiration 6, Sharpness 12, Mending 1).
 
 ## Loot and persistence
 - [ ] Loot count is 14–18 base occupied stacks plus any special rewards.
