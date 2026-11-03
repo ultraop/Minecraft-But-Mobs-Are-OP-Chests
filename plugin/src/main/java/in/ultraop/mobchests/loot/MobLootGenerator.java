@@ -221,7 +221,7 @@ public final class MobLootGenerator {
                     "ENDER_PEARL", "CHORUS_FRUIT", "PURPUR_BLOCK", "END_STONE",
                     "PHANTOM_MEMBRANE", "AMETHYST_SHARD", "POPPED_CHORUS_FRUIT",
                     "PURPUR_PILLAR", "END_ROD", "SHULKER_SHELL");
-            default -> List.of("PAPER", "COMPASS", "MAP", "CLOCK", "BOOK");
+            default -> List.of("PAPER", "COMPASS", "CLOCK", "BOOK");
         };
     }
 
