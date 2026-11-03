@@ -33,7 +33,9 @@
 ## Loot and persistence
 - [ ] Loot count is 14–18 base occupied stacks plus any special rewards.
 - [ ] Common pools mix stone, dirt, sand, gravel, deepslate, dyes, bones, ink, food, crafting materials and utility items.
-- [ ] Signed Written Books and effect-bearing potions are valid items.
+- [ ] Signed Written Books, normal Vanilla Enchanted Books and effect-bearing potions are valid items.
+- [ ] Common loot includes wooden/stone tools, fishing rods, shears, flint and steel, shields and compasses.
+- [ ] Uncommon loot includes iron tools, crossbows, spyglasses, brushes, goat horns and recovery compasses.
 - [ ] Normal Vanilla Enchanted Books have valid stored levels.
 - [ ] Maps are restricted to explorer/trader-type Mob pools.
 - [ ] Netherite scrap/ancient debris/ingot do not appear in Overworld or End pools.

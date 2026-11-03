@@ -27,11 +27,12 @@ This is a vanilla pitch pose, not a true split-body chest hinge. Different Mob r
 Common pools now mix family-specific loot with broad survival items:
 
 - Blocks and stone: stone, dirt, gravel, sand, granite, diorite, andesite, tuff, calcite, deepslate, cobbled deepslate, moss, mud, glass and dimension-themed blocks.
+- Tools: wooden/stone starter tools in common loot; iron tools, crossbows, fishing rods, shears, spyglasses, brushes, shields, goat horns and recovery compasses in uncommon loot.
 - Materials: bones, bone meal, ink sacs, glow ink sacs, all dye colours, feathers, string, leather, metals, coal, redstone, lapis, seeds and crops.
 - Utility/decor: paper, clocks, books, chains, lanterns, candles, barrels, chests, name tags, leads, saddles and item frames.
 - Signed written books with short explorer notes.
 - Potions, splash potions and lingering potions from a safe set of vanilla potion types.
-- Normal vanilla Enchanted Books with valid vanilla levels; these remain usable in an anvil.
+- Normal vanilla Enchanted Books with valid vanilla levels; these remain usable in an anvil. They are distinct from plugin-applied Ancient Enchanted Books.
 - Smithing templates and armour trims appear in uncommon pools.
 - Maps are limited to explorer/trader-type Mob pools, not added to every Mob.
 
