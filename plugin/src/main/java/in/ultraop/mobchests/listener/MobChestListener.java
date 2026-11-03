@@ -32,6 +32,7 @@ import org.bukkit.event.world.ChunkLoadEvent;
 import org.bukkit.event.world.ChunkUnloadEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.EnchantmentStorageMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.scheduler.BukkitTask;
@@ -48,10 +49,10 @@ import java.util.concurrent.ThreadLocalRandom;
 /**
  * Resource-pack-free living mob chest interaction.
  *
- * The real entity remains visible and keeps its vanilla dimensions. Paper's
- * Mob.lookAt head controller raises the vanilla head/front while body yaw is
- * held at its original value. Mobs without a separately controlled head may
- * not show an independent lid pose; no client model or scale replacement is used.
+ * The real entity remains visible and keeps its vanilla dimensions. AI is
+ * disabled while the chest is active and vanilla entity pitch is applied
+ * directly, preventing look goals from fighting the opening pose. Some mob
+ * renderers may still interpret pitch differently; no model or scale is replaced.
  *
  * State: NORMAL -> FROZEN -> OPENING -> LOOT_OPEN -> CLOSING -> LOOTED.
  * Loot contents are saved on the mob itself and become its death drops after
@@ -190,6 +191,18 @@ public final class MobChestListener implements Listener {
         Integer storedRank = itemData.get(
                 new NamespacedKey(plugin, "custom_enchantment_rank"), PersistentDataType.INTEGER);
         int rank = storedRank == null ? 8 : Math.max(1, Math.min(15, storedRank));
+
+        // Migrate previously issued custom books: remove the old unsafe
+        // StoredEnchantments entry (e.g. Respiration enchantment.level.46).
+        if (held.getItemMeta() instanceof EnchantmentStorageMeta legacyMeta
+                && !legacyMeta.getStoredEnchants().isEmpty()) {
+            for (Enchantment oldEnchantment : new ArrayList<>(legacyMeta.getStoredEnchants().keySet())) {
+                legacyMeta.removeStoredEnchant(oldEnchantment);
+            }
+            held.setItemMeta(legacyMeta);
+            player.getInventory().setItemInMainHand(held);
+        }
+
         Enchantment enchantment = Registry.ENCHANTMENT.get(NamespacedKey.minecraft(enchantmentId));
         if (enchantment == null) {
             player.sendMessage("§cThis enchantment is not available on this server version.");
@@ -437,7 +450,7 @@ public final class MobChestListener implements Listener {
                     }
 
                     setState(mob, LOOT_OPEN);
-                    startOpenPoseHold(mob, plugin.settings().openingHeadLookDegrees());
+                    startOpenPoseHold(mob, plugin.settings().openingHeadPitchDegrees());
                     launchLootBurst(mob, inventory);
                     persistInventory(mob, inventory);
                     try {
@@ -497,7 +510,7 @@ public final class MobChestListener implements Listener {
      * The old freeze task was removed at the beginning of the opening animation,
      * so this hold task owns the mob until the inventory closes.
      */
-    private void startOpenPoseHold(Mob mob, float lookUpDegrees) {
+    private void startOpenPoseHold(Mob mob, float openPitch) {
         UUID id = mob.getUniqueId();
         stopTask(freezeTasks.remove(id));
         BukkitTask task = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
@@ -512,7 +525,7 @@ public final class MobChestListener implements Listener {
                     || mob.getLocation().distanceSquared(anchor) > 0.0001) {
                 mob.teleport(anchor);
             }
-            applyHeadPitch(mob, anchor, -Math.abs(lookUpDegrees));
+            applyHeadPitch(mob, anchor, openPitch);
         }, 1L, 1L);
         freezeTasks.put(id, task);
     }
@@ -552,8 +565,9 @@ public final class MobChestListener implements Listener {
             item.setPickupDelay(14);
 
             double angle = random.nextDouble(0.0, Math.PI * 2.0);
-            double horizontal = random.nextDouble(0.28, 0.62);
-            double vertical = random.nextDouble(0.72, 1.05);
+            // Low horizontal speed keeps the items within roughly 3–4 blocks.
+            double horizontal = random.nextDouble(0.10, 0.15);
+            double vertical = random.nextDouble(0.52, 0.62);
             item.setVelocity(new Vector(
                     Math.cos(angle) * horizontal,
                     vertical,
