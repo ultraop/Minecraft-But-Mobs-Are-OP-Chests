@@ -27,6 +27,9 @@ jobs:
       - name: Build Paper plugin
         run: gradle clean build
 
+      - name: Install resource-pack image dependency
+        run: python3 -m pip install --user -r resource-pack/requirements.txt
+
       - name: Build Liquid Gold resource pack
         run: python3 resource-pack/build_pack.py
 
