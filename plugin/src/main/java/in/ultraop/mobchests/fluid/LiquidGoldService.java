@@ -20,6 +20,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockFadeEvent;
+import org.bukkit.event.block.BlockFormEvent;
 import org.bukkit.event.block.BlockFromToEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.block.BlockPistonExtendEvent;
@@ -51,8 +52,8 @@ import java.util.UUID;
 /**
  * Water-physics-backed Liquid Gold simulation.
  *
- * Vanilla WATER supplies swimming and collision. Natural water flow is cancelled
- * and recalculated by this service. Persistent ItemDisplay overlays use a
+ * Vanilla WATER supplies swimming, collision, flow timing and infinite sources.
+ * The plugin tracks its cells and adds persistent ItemDisplay overlays using a
  * companion 26.3 resource pack to show a translucent golden surface without
  * changing normal water or lava textures.
  */
@@ -91,12 +92,10 @@ public final class LiquidGoldService implements Listener {
 
     public void start() {
         scanLoadedChunks();
-        long interval = Math.max(2L, plugin.getConfig().getLong("liquid-gold.flow-interval-ticks", 5L));
-        flowTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
-            simulationTick++;
-            recalculateFlow();
-            refreshImmersionEffects();
-        }, interval, interval);
+        // Native WATER ticks own all spreading and source regeneration.
+        // This task only refreshes immersion effects for stationary players.
+        flowTask = Bukkit.getScheduler().runTaskTimer(
+                plugin, this::refreshImmersionEffects, 10L, 10L);
     }
 
     public void shutdown() {
@@ -228,11 +227,11 @@ public final class LiquidGoldService implements Listener {
         sources.add(key);
         sourceStartedAt.put(key, simulationTick);
         cells.put(key, new FluidCell(0, true, null));
+        ensureDisplay(key, 0, true);
         consumeFilledBucket(player);
         player.playSound(target.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 0.75F, 1.55F);
         player.spawnParticle(Particle.DUST, target.getLocation().add(0.5, 0.72, 0.5),
                 8, 0.24, 0.08, 0.24, new Particle.DustOptions(Color.fromRGB(255, 211, 66), 1.15F));
-        recalculateFlow();
     }
 
     private void scoop(Player player, FluidKey key) {
@@ -249,7 +248,6 @@ public final class LiquidGoldService implements Listener {
         consumeEmptyBucket(player);
         giveItem(player, createBucket(plugin));
         player.playSound(block.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_CHIME, 0.8F, 1.35F);
-        recalculateFlow();
     }
 
     private void drink(Player player) {
@@ -412,13 +410,59 @@ public final class LiquidGoldService implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onVanillaFluidFlow(BlockFromToEvent event) {
-        // Keep our simulated flow separate from normal water/lava in both
-        // directions: neither normal fluid may enter a gold cell nor gold
-        // water may spread through the vanilla fluid engine.
-        if (cells.containsKey(key(event.getBlock()))
-                || cells.containsKey(key(event.getToBlock()))) {
-            event.setCancelled(true);
+        FluidKey fromKey = key(event.getBlock());
+        FluidKey toKey = key(event.getToBlock());
+        FluidCell fromCell = cells.get(fromKey);
+        FluidCell toCell = cells.get(toKey);
+
+        // Do not merge ordinary water into Liquid Gold or Liquid Gold into an
+        // unrelated water pool. For air/replaceable blocks, leave the event
+        // untouched so vanilla WATER performs its own 5-tick flow and levels.
+        if (fromCell == null) {
+            if (toCell != null) event.setCancelled(true);
+            return;
         }
+        if (event.getToBlock().getType() == Material.WATER && toCell == null) {
+            event.setCancelled(true);
+            return;
+        }
+
+        int maxCells = Math.max(128, plugin.getConfig().getInt("liquid-gold.max-active-cells", 4096));
+        if (toCell == null && cells.size() >= maxCells) {
+            event.setCancelled(true);
+            return;
+        }
+
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            refreshGoldCell(fromKey);
+            refreshGoldCell(toKey);
+        });
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onGoldSourceForm(BlockFormEvent event) {
+        if (event.getNewState().getType() != Material.WATER) return;
+        Block formed = event.getBlock();
+        int goldSourceNeighbours = 0;
+        for (BlockFace face : HORIZONTAL) {
+            FluidCell neighbour = cells.get(key(formed.getRelative(face)));
+            if (neighbour != null && neighbour.source) goldSourceNeighbours++;
+        }
+        if (goldSourceNeighbours < 2) return;
+
+        FluidKey formedKey = key(formed);
+        Bukkit.getScheduler().runTask(plugin, () -> refreshGoldCell(formedKey));
+    }
+
+    private void refreshGoldCell(FluidKey key) {
+        Block block = getBlock(key);
+        if (block == null || block.getType() != Material.WATER) return;
+        BlockData data = block.getBlockData();
+        int level = data instanceof Levelled levelled ? levelled.getLevel() : 0;
+        boolean source = level == 0;
+        ensureDisplay(key, level, source);
+        if (source) sources.add(key);
+        else sources.remove(key);
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -456,7 +500,6 @@ public final class LiquidGoldService implements Listener {
     public void onChunkLoad(ChunkLoadEvent event) {
         Bukkit.getScheduler().runTask(plugin, () -> {
             scanChunk(event.getChunk());
-            recalculateFlow();
         });
     }
 
@@ -464,7 +507,6 @@ public final class LiquidGoldService implements Listener {
         for (World world : Bukkit.getWorlds()) {
             for (org.bukkit.Chunk chunk : world.getLoadedChunks()) scanChunk(chunk);
         }
-        recalculateFlow();
     }
 
     private void scanChunk(org.bukkit.Chunk chunk) {
@@ -520,6 +562,17 @@ public final class LiquidGoldService implements Listener {
     }
 
     private void recalculateFlow() {
+        // Intentionally unused: native Minecraft WATER now owns all flow and
+        // infinite-source behaviour. Kept as a compatibility shim for older
+        // method call sites while they are removed from the next cleanup.
+    }
+
+    /*
+     * Legacy custom BFS code retained temporarily for source compatibility.
+     * It is never called; do not re-enable it because it bypasses vanilla fluid
+     * timing and source regeneration.
+     */
+    private void legacyRecalculateFlow() {
         if (!plugin.getConfig().getBoolean("liquid-gold.enabled", true)) return;
         applyDiagonalInfiniteSources();
 
@@ -722,16 +775,16 @@ public final class LiquidGoldService implements Listener {
         BlockData data = Material.WATER.createBlockData();
         if (data instanceof Levelled levelled) {
             levelled.setLevel(Math.max(0, Math.min(8, level)));
-            block.setBlockData(levelled, false);
+            block.setBlockData(levelled, true);
         } else {
-            block.setType(Material.WATER, false);
+            block.setType(Material.WATER, true);
         }
     }
 
     private void clearCell(FluidKey key, FluidCell cell) {
         Block block = getBlock(key);
         if (block != null && block.getType() == Material.WATER) {
-            block.setType(Material.AIR, false);
+            block.setType(Material.AIR, true);
         }
         if (cell.displayId != null) {
             org.bukkit.entity.Entity entity = Bukkit.getEntity(cell.displayId);
