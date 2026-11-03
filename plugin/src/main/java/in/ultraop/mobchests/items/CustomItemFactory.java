@@ -75,9 +75,9 @@ public final class CustomItemFactory {
                         .decoration(TextDecoration.ITALIC, TextDecoration.State.FALSE),
                 Component.text("Eat for a random bonus lasting 5–10 seconds.", NamedTextColor.YELLOW)
                         .decoration(TextDecoration.ITALIC, TextDecoration.State.FALSE)));
-        FoodComponent food = meta.getFood();
-        food.setCanAlwaysEat(true);
-        meta.setFood(food);
+        FoodComponent foodComponent = meta.getFood();
+        foodComponent.setCanAlwaysEat(true);
+        meta.setFood(foodComponent);
         meta.setItemModel(new NamespacedKey(plugin, food.id()));
         meta.getPersistentDataContainer().set(new NamespacedKey(plugin, "custom_item_id"),
                 PersistentDataType.STRING, food.id());
