@@ -26,6 +26,7 @@ import org.bukkit.event.block.BlockPistonExtendEvent;
 import org.bukkit.event.block.BlockPistonRetractEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.world.ChunkLoadEvent;
 import org.bukkit.inventory.EquipmentSlot;
@@ -72,6 +73,9 @@ public final class LiquidGoldService implements Listener {
     private final Set<FluidKey> sources = new HashSet<>();
     private final Set<UUID> insidePlayers = new HashSet<>();
     private final Map<UUID, Long> lastPowerAt = new HashMap<>();
+    private final Map<FluidKey, Long> sourceStartedAt = new HashMap<>();
+    private final Map<UUID, BukkitTask> drinkTasks = new HashMap<>();
+    private long simulationTick;
 
     private BukkitTask flowTask;
 
@@ -87,10 +91,12 @@ public final class LiquidGoldService implements Listener {
 
     public void start() {
         scanLoadedChunks();
+        long interval = Math.max(2L, plugin.getConfig().getLong("liquid-gold.flow-interval-ticks", 4L));
         flowTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            simulationTick++;
             recalculateFlow();
             refreshImmersionEffects();
-        }, 10L, Math.max(5L, plugin.getConfig().getLong("liquid-gold.flow-interval-ticks", 10L)));
+        }, interval, interval);
     }
 
     public void shutdown() {
@@ -101,8 +107,11 @@ public final class LiquidGoldService implements Listener {
         // Do not remove the water blocks or persistent display entities. Their
         // source/level metadata is stored on each display and is restored on
         // plugin enable or chunk load.
+        for (BukkitTask task : drinkTasks.values()) task.cancel();
+        drinkTasks.clear();
         cells.clear();
         sources.clear();
+        sourceStartedAt.clear();
         insidePlayers.clear();
         lastPowerAt.clear();
     }
@@ -218,9 +227,10 @@ public final class LiquidGoldService implements Listener {
 
         placeWater(target, 0);
         sources.add(key);
+        sourceStartedAt.put(key, simulationTick);
         cells.put(key, new FluidCell(0, true, null));
         consumeFilledBucket(player);
-        player.playSound(target.getLocation(), Sound.ITEM_BUCKET_EMPTY, 0.9F, 1.15F);
+        player.playSound(target.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 0.75F, 1.55F);
         player.spawnParticle(Particle.DUST, target.getLocation().add(0.5, 0.72, 0.5),
                 8, 0.24, 0.08, 0.24, new Particle.DustOptions(Color.fromRGB(255, 211, 66), 1.15F));
         recalculateFlow();
@@ -239,17 +249,52 @@ public final class LiquidGoldService implements Listener {
         removeCell(key, true);
         consumeEmptyBucket(player);
         giveItem(player, createBucket(plugin));
-        player.playSound(block.getLocation(), Sound.ITEM_BUCKET_FILL, 0.9F, 1.1F);
+        player.playSound(block.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_CHIME, 0.8F, 1.35F);
         recalculateFlow();
     }
 
     private void drink(Player player) {
-        consumeFilledBucket(player);
-        applyGoldenSurge(player);
-        player.playSound(player.getLocation(), Sound.ENTITY_GENERIC_DRINK, 0.85F, 1.0F);
-        player.sendActionBar("§6Liquid Gold consumed — golden powers for 10 seconds!");
-        player.getWorld().spawnParticle(Particle.DUST, player.getLocation().add(0, 1.0, 0),
-                18, 0.35, 0.45, 0.35, new Particle.DustOptions(Color.fromRGB(255, 214, 64), 1.35F));
+        UUID playerId = player.getUniqueId();
+        if (drinkTasks.containsKey(playerId)) return;
+
+        final int drinkTicks = 32;
+        final int[] elapsed = {0};
+        player.setCooldown(Material.BUCKET, drinkTicks);
+        player.playSound(player.getLocation(), Sound.ENTITY_GENERIC_DRINK, 0.85F, 0.85F);
+        player.sendActionBar("§6Drinking Liquid Gold...");
+        BukkitTask task = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            if (!player.isOnline() || !isLiquidGoldBucket(
+                    player.getInventory().getItemInMainHand(), plugin)) {
+                cancelDrink(playerId);
+                if (player.isOnline()) player.sendActionBar("§7Drinking cancelled.");
+                return;
+            }
+
+            elapsed[0] += 4;
+            if (elapsed[0] < drinkTicks) {
+                player.sendActionBar("§6Drinking Liquid Gold...");
+                return;
+            }
+
+            cancelDrink(playerId);
+            consumeFilledBucket(player);
+            applyGoldenSurge(player);
+            player.playSound(player.getLocation(), Sound.BLOCK_BEACON_ACTIVATE, 0.8F, 1.35F);
+            player.sendActionBar("§6Liquid Gold consumed — golden powers for 10 seconds!");
+            player.getWorld().spawnParticle(Particle.DUST, player.getLocation().add(0, 1.0, 0),
+                    18, 0.35, 0.45, 0.35, new Particle.DustOptions(Color.fromRGB(255, 214, 64), 1.35F));
+        }, 1L, 4L);
+        drinkTasks.put(playerId, task);
+    }
+
+    private void cancelDrink(UUID playerId) {
+        BukkitTask task = drinkTasks.remove(playerId);
+        if (task != null) task.cancel();
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onHeldSlotChange(PlayerItemHeldEvent event) {
+        cancelDrink(event.getPlayer().getUniqueId());
     }
 
     private void consumeFilledBucket(Player player) {
@@ -360,6 +405,7 @@ public final class LiquidGoldService implements Listener {
         UUID id = event.getPlayer().getUniqueId();
         insidePlayers.remove(id);
         lastPowerAt.remove(id);
+        cancelDrink(id);
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -437,6 +483,11 @@ public final class LiquidGoldService implements Listener {
             }
 
             FluidKey key = new FluidKey(chunk.getWorld().getUID(), x, y, z);
+            if (isSource != 0) {
+                int configuredReach = Math.max(1, plugin.getConfig().getInt("liquid-gold.horizontal-range", 7)
+                        + plugin.getConfig().getInt("liquid-gold.vertical-range", 8) + 1);
+                sourceStartedAt.putIfAbsent(key, simulationTick - configuredReach);
+            }
             Block block = chunk.getWorld().getBlockAt(x, y, z);
             if (block.getType() != Material.WATER && (block.isEmpty() || block.isPassable())) {
                 placeWater(block, Math.max(0, Math.min(8, level)));
@@ -451,7 +502,10 @@ public final class LiquidGoldService implements Listener {
             FluidCell previous = cells.put(key,
                     new FluidCell(level, isSource != 0, display.getUniqueId()));
             if (isSource != 0) sources.add(key);
-            else sources.remove(key);
+            else {
+                sources.remove(key);
+                sourceStartedAt.remove(key);
+            }
 
             // Remove stale duplicate visual cells at the same block position.
             if (previous != null && previous.displayId != null
@@ -476,7 +530,10 @@ public final class LiquidGoldService implements Listener {
 
         for (FluidKey source : new ArrayList<>(sources)) {
             if (desired.size() >= totalLimit || !isChunkLoaded(source)) continue;
-            buildFromSource(source, desired, horizontalRange, verticalRange, totalLimit);
+            long startedAt = sourceStartedAt.computeIfAbsent(source, ignored -> simulationTick);
+            int allowedDepth = (int) Math.min(horizontalRange + verticalRange,
+                    Math.max(0L, simulationTick - startedAt));
+            buildFromSource(source, desired, horizontalRange, verticalRange, totalLimit, allowedDepth);
         }
 
         Iterator<Map.Entry<FluidKey, FluidCell>> iterator = cells.entrySet().iterator();
@@ -486,7 +543,10 @@ public final class LiquidGoldService implements Listener {
             if (!isChunkLoaded(key)) continue;
             if (desired.containsKey(key)) continue;
             clearCell(key, entry.getValue());
-            if (entry.getValue().source) sources.remove(key);
+            if (entry.getValue().source) {
+                sources.remove(key);
+                sourceStartedAt.remove(key);
+            }
             iterator.remove();
         }
 
@@ -509,7 +569,7 @@ public final class LiquidGoldService implements Listener {
     }
 
     private void buildFromSource(FluidKey source, Map<FluidKey, FlowState> desired,
-                                 int horizontalRange, int verticalRange, int totalLimit) {
+                                 int horizontalRange, int verticalRange, int totalLimit, int allowedDepth) {
         World world = Bukkit.getWorld(source.worldId);
         if (world == null) return;
 
@@ -520,6 +580,8 @@ public final class LiquidGoldService implements Listener {
         while (!queue.isEmpty() && desired.size() < totalLimit) {
             FlowNode node = queue.removeFirst();
             if (!visited.add(node.key) || !isChunkLoaded(node.key)) continue;
+            int pathDepth = node.downDepth + node.horizontalDepth;
+            if (pathDepth > allowedDepth) continue;
 
             Block currentBlock = world.getBlockAt(node.key.x, node.key.y, node.key.z);
             FluidCell existing = cells.get(node.key);
@@ -535,12 +597,14 @@ public final class LiquidGoldService implements Listener {
             boolean canFall = node.downDepth < verticalRange && isChunkLoaded(belowKey)
                     && canFlowInto(below, belowKey);
             if (canFall) {
-                queue.addLast(new FlowNode(belowKey, 8,
-                        node.downDepth + 1, node.horizontalDepth, true));
+                if (pathDepth < allowedDepth) {
+                    queue.addLast(new FlowNode(belowKey, 8,
+                            node.downDepth + 1, node.horizontalDepth, true));
+                }
                 continue;
             }
 
-            if (node.horizontalDepth >= horizontalRange) continue;
+            if (pathDepth >= allowedDepth || node.horizontalDepth >= horizontalRange) continue;
             int nextLevel = node.falling ? 1 : (node.level == 0 ? 1 : node.level + 1);
             if (nextLevel > 7) continue;
 
@@ -598,6 +662,7 @@ public final class LiquidGoldService implements Listener {
 
         for (FluidKey key : additions) {
             sources.add(key);
+            sourceStartedAt.putIfAbsent(key, simulationTick);
             cells.put(key, new FluidCell(0, true, null));
         }
     }
@@ -675,6 +740,7 @@ public final class LiquidGoldService implements Listener {
     private void removeCell(FluidKey key, boolean clearBlock) {
         FluidCell cell = cells.remove(key);
         sources.remove(key);
+        sourceStartedAt.remove(key);
         if (cell == null) return;
         if (clearBlock) clearCell(key, cell);
     }
