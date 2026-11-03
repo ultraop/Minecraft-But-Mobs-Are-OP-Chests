@@ -353,14 +353,32 @@ public final class MobLootGenerator {
         meta.lore(List.of(
                 itemLore("Enchantment: " + title(selected.id()), NamedTextColor.GOLD),
                 itemLore("Level: " + rank, NamedTextColor.AQUA),
-                itemLore("Hold compatible gear in your off-hand.", NamedTextColor.GRAY),
-                itemLore("Right-click while holding this book.", NamedTextColor.GRAY)));
+                itemLore("Compatible gear: " + compatibleGearLabel(selected.id()), NamedTextColor.GRAY),
+                itemLore("Place gear in off-hand; hold this book and right-click.", NamedTextColor.GRAY)));
         meta.getPersistentDataContainer().set(new NamespacedKey(plugin, "custom_enchantment_rank"),
                 PersistentDataType.INTEGER, rank);
         meta.getPersistentDataContainer().set(new NamespacedKey(plugin, "custom_enchantment_id"),
                 PersistentDataType.STRING, selected.id());
         tome.setItemMeta(meta);
         return tome;
+    }
+
+    private static String compatibleGearLabel(String enchantmentId) {
+        return switch (enchantmentId) {
+            case "respiration" -> "Helmet";
+            case "feather_falling", "depth_strider", "soul_speed" -> "Boots";
+            case "swift_sneak" -> "Leggings";
+            case "protection", "blast_protection", "fire_protection",
+                    "projectile_protection", "thorns" -> "Any armour";
+            case "sharpness", "smite", "bane_of_arthropods", "sweeping_edge",
+                    "fire_aspect", "knockback", "looting" -> "Sword (some also work on axes)";
+            case "power" -> "Bow";
+            case "efficiency", "fortune" -> "Pickaxe, axe, shovel or hoe";
+            case "unbreaking" -> "Any durable item";
+            case "quick_charge", "piercing" -> "Crossbow";
+            case "impaling", "loyalty", "riptide" -> "Trident";
+            default -> "Compatible tool or armour";
+        };
     }
 
     private static ItemStack vanillaEnchantedBook(ThreadLocalRandom random) {
