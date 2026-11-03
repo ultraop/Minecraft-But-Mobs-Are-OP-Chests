@@ -3,6 +3,8 @@ package in.ultraop.mobchests.config;
 import in.ultraop.mobchests.UltraOPMobChestsPlugin;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.EntityType;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.Mob;
 
 public final class PluginSettings {
     private final UltraOPMobChestsPlugin plugin;
@@ -24,6 +26,25 @@ public final class PluginSettings {
         if (config.getBoolean("prototype.support-all-mobs", true)) return true;
         return config.getStringList("prototype.supported-entities").stream()
                 .anyMatch(name -> name.equalsIgnoreCase(type.name()));
+    }
+
+    public int totalMobTypeCount() {
+        int count = 0;
+        for (EntityType type : EntityType.values()) {
+            Class<? extends Entity> entityClass = type.getEntityClass();
+            if (entityClass != null && Mob.class.isAssignableFrom(entityClass)) count++;
+        }
+        return count;
+    }
+
+    public int supportedMobTypeCount() {
+        int count = 0;
+        for (EntityType type : EntityType.values()) {
+            Class<? extends Entity> entityClass = type.getEntityClass();
+            if (entityClass != null && Mob.class.isAssignableFrom(entityClass)
+                    && interactionsEnabled(type)) count++;
+        }
+        return count;
     }
 
     public float openingHeadPitchDegrees() {
