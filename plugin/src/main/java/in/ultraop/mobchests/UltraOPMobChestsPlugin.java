@@ -6,6 +6,7 @@ import in.ultraop.mobchests.config.PluginSettings;
 import in.ultraop.mobchests.listener.MobChestListener;
 import in.ultraop.mobchests.fluid.LiquidGoldService;
 import in.ultraop.mobchests.items.CustomItemsMenu;
+import in.ultraop.mobchests.items.GoldenFoodListener;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.event.HandlerList;
@@ -28,6 +29,7 @@ public final class UltraOPMobChestsPlugin extends JavaPlugin {
 
         customItemsMenu = new CustomItemsMenu(this);
         getServer().getPluginManager().registerEvents(customItemsMenu, this);
+        getServer().getPluginManager().registerEvents(new GoldenFoodListener(this), this);
 
         MobChestsCommand executor = new MobChestsCommand(this, customItemsMenu);
         PluginCommand command = getCommand("mobchests");
