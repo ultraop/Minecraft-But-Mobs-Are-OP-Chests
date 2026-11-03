@@ -494,8 +494,13 @@ public final class MobChestListener implements Listener {
         persistInventory(mob, inventory);
 
         Location effectLocation = mob.getLocation().clone().add(0.0, Math.max(0.7, mob.getHeight() * 0.7), 0.0);
-        mob.getWorld().playSound(effectLocation, Sound.BLOCK_CHEST_OPEN, 0.9F, 1.0F);
-        mob.getWorld().playSound(effectLocation, Sound.ENTITY_FIREWORK_ROCKET_LAUNCH, 0.55F, 1.2F);
+        // Scale the opening sound only slightly by Mob size. Small animals stay
+        // quiet, while larger mobs and bosses sound a little fuller.
+        float sizeFactor = (float) Math.max(0.0, Math.min(1.0, (mob.getHeight() - 0.65) / 2.8));
+        float chestVolume = 0.72F + 0.18F * sizeFactor;
+        float rocketVolume = 0.48F + 0.14F * sizeFactor;
+        mob.getWorld().playSound(effectLocation, Sound.BLOCK_CHEST_OPEN, chestVolume, 1.0F);
+        mob.getWorld().playSound(effectLocation, Sound.ENTITY_FIREWORK_ROCKET_LAUNCH, rocketVolume, 1.2F);
         mob.getWorld().spawnParticle(Particle.END_ROD, effectLocation, 8, 0.12, 0.12, 0.12, 0.025);
 
         animateHeadPitch(mob, anchor.getPitch(), plugin.settings().openingHeadPitchDegrees(),
