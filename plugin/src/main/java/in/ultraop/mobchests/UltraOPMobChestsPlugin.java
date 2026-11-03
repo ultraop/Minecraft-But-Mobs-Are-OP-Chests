@@ -4,6 +4,7 @@ import in.ultraop.mobchests.command.MobChestsCommand;
 import in.ultraop.mobchests.config.MessageService;
 import in.ultraop.mobchests.config.PluginSettings;
 import in.ultraop.mobchests.listener.MobChestListener;
+import in.ultraop.mobchests.fluid.LiquidGoldService;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.event.HandlerList;
@@ -12,6 +13,7 @@ public final class UltraOPMobChestsPlugin extends JavaPlugin {
     private PluginSettings settings;
     private MessageService messages;
     private MobChestListener mobChestListener;
+    private LiquidGoldService liquidGoldService;
 
     @Override
     public void onEnable() {
@@ -33,14 +35,21 @@ public final class UltraOPMobChestsPlugin extends JavaPlugin {
         command.setTabCompleter(executor);
 
         mobChestListener = new MobChestListener(this);
+        liquidGoldService = new LiquidGoldService(this);
         getServer().getPluginManager().registerEvents(mobChestListener, this);
+        getServer().getPluginManager().registerEvents(liquidGoldService, this);
         mobChestListener.recoverLoadedEntities();
+        liquidGoldService.start();
 
-        getLogger().info("Mob Chests enabled. Resource-pack-free vanilla mob pose interactions and persistent chest loot are active.");
+        getLogger().info("Mob Chests enabled. Mob chest gameplay and Liquid Gold fluid simulation are active.");
     }
 
     @Override
     public void onDisable() {
+        if (liquidGoldService != null) {
+            liquidGoldService.shutdown();
+            HandlerList.unregisterAll(liquidGoldService);
+        }
         if (mobChestListener != null) {
             mobChestListener.shutdown();
             HandlerList.unregisterAll(mobChestListener);
