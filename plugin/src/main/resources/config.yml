@@ -53,7 +53,7 @@ rarity:
 
 liquid-gold:
   enabled: true
-  flow-interval-ticks: 4
+  flow-interval-ticks: 5
   horizontal-range: 7
   vertical-range: 8
   max-active-cells: 2048
