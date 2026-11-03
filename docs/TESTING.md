@@ -8,6 +8,8 @@
 - [ ] No obsolete Cow/Creeper ItemDisplay animator classes are bundled.
 
 ## Mob pose and freeze
+- [ ] `/mobchests status` reports enabled Mob EntityTypes out of the total Paper Mob EntityTypes.
+- [ ] With `support-all-mobs: true` and no exclusions, enabled count equals total count.
 - [ ] First right-click freezes the Mob in place with a subtle tremble.
 - [ ] AI and awareness remain disabled through FROZEN, OPENING, LOOT_OPEN and CLOSING.
 - [ ] Second right-click raises pitch toward -88 degrees.
