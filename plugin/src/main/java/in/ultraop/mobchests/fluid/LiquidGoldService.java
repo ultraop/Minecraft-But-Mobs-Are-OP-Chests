@@ -180,7 +180,8 @@ public final class LiquidGoldService implements Listener {
             return;
         }
 
-        if (held.getType() == Material.BUCKET
+        if (!event.isCancelled()
+                && held.getType() == Material.BUCKET
                 && event.getAction() == org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK
                 && event.getClickedBlock() != null) {
             FluidKey clicked = key(event.getClickedBlock());
@@ -353,7 +354,13 @@ public final class LiquidGoldService implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onVanillaFluidFlow(BlockFromToEvent event) {
-        if (cells.containsKey(key(event.getBlock()))) event.setCancelled(true);
+        // Keep our simulated flow separate from normal water/lava in both
+        // directions: neither normal fluid may enter a gold cell nor gold
+        // water may spread through the vanilla fluid engine.
+        if (cells.containsKey(key(event.getBlock()))
+                || cells.containsKey(key(event.getToBlock()))) {
+            event.setCancelled(true);
+        }
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -686,56 +693,6 @@ public final class LiquidGoldService implements Listener {
 
     private FluidKey key(Block block) {
         return new FluidKey(block.getWorld().getUID(), block.getX(), block.getY(), block.getZ());
-    }
-
-    private void scanLoadedChunks() {
-        for (World world : Bukkit.getWorlds()) {
-            for (org.bukkit.Chunk chunk : world.getLoadedChunks()) scanChunk(chunk);
-        }
-    }
-
-    private void scanChunk(org.bukkit.Chunk chunk) {
-        for (org.bukkit.entity.Entity entity : chunk.getEntities()) {
-            if (!(entity instanceof ItemDisplay display)) continue;
-            PersistentDataContainer data = display.getPersistentDataContainer();
-            Byte marker = data.get(displayMarkerKey, PersistentDataType.BYTE);
-            if (marker == null || marker == 0) continue;
-            Integer x = data.get(displayXKey, PersistentDataType.INTEGER);
-            Integer y = data.get(displayYKey, PersistentDataType.INTEGER);
-            Integer z = data.get(displayZKey, PersistentDataType.INTEGER);
-            Integer level = data.get(displayLevelKey, PersistentDataType.INTEGER);
-            Byte source = data.get(displaySourceKey, PersistentDataType.BYTE);
-            if (x == null || y == null || z == null || level == null || source == null) {
-                display.remove();
-                continue;
-            }
-
-            FluidKey key = new FluidKey(chunk.getWorld().getUID(), x, y, z);
-            Block block = chunk.getWorld().getBlockAt(x, y, z);
-            if (block.getType() != Material.WATER && canReplaceForFluid(block)) {
-                placeWater(block, level);
-            }
-            if (block.getType() != Material.WATER) {
-                display.remove();
-                continue;
-            }
-            FluidCell previous = cells.put(key,
-                    new FluidCell(level, source != 0, display.getUniqueId()));
-            if (source != 0) sources.add(key);
-            if (previous != null && previous.displayId != null
-                    && !previous.displayId.equals(display.getUniqueId())) {
-                org.bukkit.entity.Entity old = Bukkit.getEntity(previous.displayId);
-                if (old != null) old.remove();
-            }
-        }
-    }
-
-    @EventHandler(priority = EventPriority.MONITOR)
-    public void onChunkLoad(ChunkLoadEvent event) {
-        Bukkit.getScheduler().runTask(plugin, () -> {
-            scanChunk(event.getChunk());
-            recalculateFlow();
-        });
     }
 
     private record FluidKey(UUID worldId, int x, int y, int z) { }
