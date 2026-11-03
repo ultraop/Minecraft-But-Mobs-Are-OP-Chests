@@ -642,6 +642,11 @@ public final class LiquidGoldService implements Listener {
         if (clearBlock) clearCell(key, cell);
     }
 
+    private boolean canReplaceForFluid(Block block) {
+        if (block.getType() == Material.WATER || block.isLiquid()) return false;
+        return block.isEmpty() || block.isPassable();
+    }
+
     private Block getBlock(FluidKey key) {
         World world = Bukkit.getWorld(key.worldId);
         if (world == null || !world.isChunkLoaded(key.x >> 4, key.z >> 4)) return null;
