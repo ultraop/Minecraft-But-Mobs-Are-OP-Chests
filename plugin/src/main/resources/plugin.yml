@@ -2,7 +2,7 @@ name: MobChests
 version: 0.1.0-SNAPSHOT
 main: in.ultraop.mobchests.UltraOPMobChestsPlugin
 api-version: '26.3'
-description: Resource-pack-free mob chest gameplay using vanilla entity poses and saved mob loot.
+description: Mob chest gameplay and water-physics Liquid Gold with an optional visual resource pack.
 authors: [MobChests Team]
 load: POSTWORLD
 commands:
