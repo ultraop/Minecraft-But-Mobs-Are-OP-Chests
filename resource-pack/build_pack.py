@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-"""Build the 26.3 MobChests pack from original vanilla item PNGs."""
+"""Build the Minecraft 26.3 MobChests pack from original vanilla item PNGs."""
 from __future__ import annotations
 
 import io
 import json
 import math
-import struct
 import time
 import urllib.request
 import zipfile
@@ -22,8 +21,7 @@ TEXTURE_PACKAGE = "https://cdn.jsdelivr.net/npm/minecraft-textures@26.3.0"
 MANIFEST_URL = f"{TEXTURE_PACKAGE}/dist/textures/manifest/26.3.json"
 ASSET_BASE_URL = f"{TEXTURE_PACKAGE}/dist/textures/assets/"
 
-# Exact vanilla item sprites. The custom PNGs below keep the original pixel art,
-# silhouette, scale and alpha; only a subtle gold tint is applied.
+# Original Minecraft 26.3 inventory sprites; only a pale-gold tint is applied.
 FOODS = {
     "golden_potato": "potato",
     "golden_baked_potato": "baked_potato",
@@ -64,8 +62,8 @@ def fetch_bytes(url: str, label: str) -> bytes:
 
 
 def load_vanilla_manifest() -> dict[str, str]:
-    manifest_path = CACHE / "manifest-26.3.json"
     CACHE.mkdir(parents=True, exist_ok=True)
+    manifest_path = CACHE / "manifest-26.3.json"
     if not manifest_path.is_file():
         manifest_path.write_bytes(fetch_bytes(MANIFEST_URL, "Minecraft 26.3 item manifest"))
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -93,24 +91,22 @@ def source_texture_bytes(texture_path: str) -> bytes:
 
 
 def tint_food_sprite(source_bytes: bytes, output: Path) -> None:
-    """Blend 18% pale gold into the original PNG while preserving its alpha."""
+    """Blend 18% pale gold into the original PNG without changing its alpha."""
     image = Image.open(io.BytesIO(source_bytes)).convert("RGBA")
-    original_alpha = image.getchannel("A").tobytes()
+    original_alpha = image.getchannel("A").copy()
     tint = Image.new("RGBA", image.size, (*GOLD_TINT, 255))
     result = Image.blend(image, tint, 0.18)
-    # Preserve the exact original transparent silhouette and edge pixels.
-    result.putalpha(Image.frombytes("L", image.size, original_alpha))
+    result.putalpha(original_alpha)
     output.parent.mkdir(parents=True, exist_ok=True)
     result.save(output, format="PNG", optimize=True)
 
 
 def tint_lava_bucket_sprite(source_bytes: bytes, output: Path) -> None:
-    """Keep the vanilla lava-bucket sprite; tint only the lava payload to pale gold."""
+    """Keep the exact vanilla lava-bucket silhouette; tint only its lava payload."""
     image = Image.open(io.BytesIO(source_bytes)).convert("RGBA")
-    original_alpha = image.getchannel("A").tobytes()
-    pixels = list(image.getdata())
+    original_alpha = image.getchannel("A").copy()
     updated = []
-    for red, green, blue, alpha in pixels:
+    for red, green, blue, alpha in image.getdata():
         if alpha > 0 and red > 95 and red > green * 1.12 and red > blue * 1.25:
             strength = 0.52
             red = round(red * (1.0 - strength) + BUCKET_LIQUID_TINT[0] * strength)
@@ -118,14 +114,13 @@ def tint_lava_bucket_sprite(source_bytes: bytes, output: Path) -> None:
             blue = round(blue * (1.0 - strength) + BUCKET_LIQUID_TINT[2] * strength)
         updated.append((red, green, blue, alpha))
     image.putdata(updated)
-    image.putalpha(Image.frombytes("L", image.size, original_alpha))
+    image.putalpha(original_alpha)
     output.parent.mkdir(parents=True, exist_ok=True)
     image.save(output, format="PNG", optimize=True)
 
 
-def fluid_texture() -> list[list[tuple[int, int, int, int]]]:
-    """Four animated liquid frames with pale gold highlights and a small alpha."""
-    rows = []
+def fluid_texture() -> Image.Image:
+    """Four animated 16x16 fluid frames with pale gold ripples and soft transparency."""
     palette = [
         (174, 126, 45),
         (202, 157, 70),
@@ -133,44 +128,19 @@ def fluid_texture() -> list[list[tuple[int, int, int, int]]]:
         (248, 221, 157),
         (255, 235, 183),
     ]
+    pixels = []
     for frame in range(4):
         for y in range(16):
-            row = []
             for x in range(16):
                 wave = math.sin((x * 0.70) + (y * 0.43) + frame * 1.15)
                 ripple = math.sin((x * 0.27) - (y * 0.82) + frame * 0.75)
                 value = (wave + ripple + 2.0) / 4.0
                 index = min(4, max(0, int(value * 5)))
                 alpha = 222 if index < 4 else 232
-                row.append((*palette[index], alpha))
-            rows.append(row)
-    return rows
-
-
-def write_png(path: Path, pixels: list[list[tuple[int, int, int, int]]]) -> None:
-    height = len(pixels)
-    width = len(pixels[0])
-    raw = b"".join(
-        b"\\x00" + bytes(channel for pixel in row for channel in pixel)
-        for row in pixels
-    )
-
-    def chunk(kind: bytes, data: bytes) -> bytes:
-        return (
-            struct.pack(">I", len(data)) + kind + data
-            + struct.pack(">I", zlib.crc32(kind + data) & 0xFFFFFFFF)
-        )
-
-    import zlib
-
-    png = (
-        b"\\x89PNG\\r\\n\\x1a\\n"
-        + chunk(b"IHDR", struct.pack(">2I5B", width, height, 8, 6, 0, 0, 0))
-        + chunk(b"IDAT", zlib.compress(raw, 9))
-        + chunk(b"IEND", b"")
-    )
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(png)
+                pixels.append((*palette[index], alpha))
+    image = Image.new("RGBA", (16, 64))
+    image.putdata(pixels)
+    return image
 
 
 def write_item_model(item_id: str) -> None:
@@ -184,14 +154,14 @@ def write_item_model(item_id: str) -> None:
                 "type": "minecraft:model",
                 "model": f"mobchests:item/{item_id}",
             }
-        }, indent=2) + "\\n",
+        }, indent=2) + "\n",
         encoding="utf-8",
     )
     (model_dir / f"{item_id}.json").write_text(
         json.dumps({
             "parent": "minecraft:item/generated",
             "textures": {"layer0": f"mobchests:item/{item_id}"},
-        }, indent=2) + "\\n",
+        }, indent=2) + "\n",
         encoding="utf-8",
     )
 
@@ -199,34 +169,34 @@ def write_item_model(item_id: str) -> None:
 def generate_assets() -> dict[str, str]:
     manifest = load_vanilla_manifest()
     texture_dir = ASSETS / "textures" / "item"
-
     required = {"liquid_gold_bucket": BUCKET_SOURCE, **FOODS}
+
     for custom_id, vanilla_id in required.items():
         if vanilla_id not in manifest:
             raise RuntimeError(
                 f"Vanilla item '{vanilla_id}' is missing from Minecraft 26.3 manifest."
             )
         original = source_texture_bytes(manifest[vanilla_id])
-        out = texture_dir / f"{custom_id}.png"
+        output = texture_dir / f"{custom_id}.png"
         if custom_id == "liquid_gold_bucket":
-            tint_lava_bucket_sprite(original, out)
+            tint_lava_bucket_sprite(original, output)
         else:
-            tint_food_sprite(original, out)
-            write_item_model(custom_id)
+            tint_food_sprite(original, output)
+        write_item_model(custom_id)
 
-    write_item_model("liquid_gold_bucket")
-    write_png(texture_dir / "liquid_gold_flow.png", fluid_texture())
+    texture_dir.mkdir(parents=True, exist_ok=True)
+    fluid_texture().save(texture_dir / "liquid_gold_flow.png", format="PNG", optimize=True)
     (texture_dir / "liquid_gold_flow.png.mcmeta").write_text(
-        json.dumps({"animation": {"frametime": 5, "interpolate": True}}, indent=2) + "\\n",
+        json.dumps({"animation": {"frametime": 5, "interpolate": True}}, indent=2) + "\n",
         encoding="utf-8",
     )
 
-    # Full-block overlays are translucent enough for fluid depth cues, but dense
-    # enough to stop blue vanilla water pixels leaking through at cell seams.
+    # Use proper translucent rendering for the full-block overlay. Its high
+    # alpha masks blue water leaks while retaining a glassy gold-liquid finish.
     for model_path in (ASSETS / "models" / "item").glob("liquid_gold_flow_*.json"):
         model = json.loads(model_path.read_text(encoding="utf-8"))
         model["render_type"] = "minecraft:translucent"
-        model_path.write_text(json.dumps(model, indent=2) + "\\n", encoding="utf-8")
+        model_path.write_text(json.dumps(model, indent=2) + "\n", encoding="utf-8")
 
     return {custom_id: manifest[vanilla_id] for custom_id, vanilla_id in required.items()}
 
@@ -264,14 +234,16 @@ def main() -> None:
         if size[0] <= 0 or size[1] <= 0:
             raise SystemExit(f"Invalid texture dimensions: {name}")
 
-    # Every food icon must preserve the original vanilla dimensions.
+    # Food icons must keep their exact original vanilla PNG dimensions.
     for custom_id, vanilla_path in source_map.items():
         if custom_id == "liquid_gold_bucket":
             continue
         expected_size = Image.open(io.BytesIO(source_texture_bytes(vanilla_path))).size
         actual_size = Image.open(texture_dir / f"{custom_id}.png").size
         if expected_size != actual_size:
-            raise SystemExit(f"Vanilla sprite size changed for {custom_id}: {expected_size} -> {actual_size}")
+            raise SystemExit(
+                f"Vanilla sprite size changed for {custom_id}: {expected_size} -> {actual_size}"
+            )
 
     animation = json.loads(
         (texture_dir / "liquid_gold_flow.png.mcmeta").read_text(encoding="utf-8")
@@ -289,8 +261,7 @@ def main() -> None:
                 not path.is_file()
                 or "build" in relative.parts
                 or ".cache" in relative.parts
-                or path.name == "build_pack.py"
-                or path.name == "requirements.txt"
+                or path.name in ("build_pack.py", "requirements.txt")
             ):
                 continue
             archive.write(path, relative.as_posix())
@@ -299,18 +270,20 @@ def main() -> None:
 
     with zipfile.ZipFile(OUTPUT) as archive:
         names = set(archive.namelist())
-        if "pack.mcmeta" not in names or "assets/mobchests/items/liquid_gold_bucket.json" not in names:
-            raise SystemExit("Resource pack is missing its root metadata or Liquid Gold item definition")
+        if "pack.mcmeta" not in names:
+            raise SystemExit("pack.mcmeta is missing at the ZIP root")
+        if "assets/mobchests/items/liquid_gold_bucket.json" not in names:
+            raise SystemExit("Liquid Gold bucket item definition is missing")
         if "assets/mobchests/items/liquid_gold_flow_7.json" not in names:
             raise SystemExit("Liquid Gold flow level models are incomplete")
         for item_id in FOODS:
             if f"assets/mobchests/items/{item_id}.json" not in names:
-                raise SystemExit(f"Missing Golden Food model: {item_id}")
+                raise SystemExit(f"Missing Golden Food item definition: {item_id}")
             if f"assets/mobchests/textures/item/{item_id}.png" not in names:
-                raise SystemExit(f"Missing original-tinted Golden Food texture: {item_id}")
+                raise SystemExit(f"Missing vanilla-derived Golden Food PNG: {item_id}")
 
     print(f"Resource pack OK: {OUTPUT} ({OUTPUT.stat().st_size} bytes)")
-    print("Original vanilla sprites preserved with a pale gold tint:")
+    print("Vanilla sprite sources:")
     for custom_id, vanilla_path in source_map.items():
         print(f"  {custom_id} <- {vanilla_path}")
 
