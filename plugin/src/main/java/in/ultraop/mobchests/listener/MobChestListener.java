@@ -174,15 +174,6 @@ public final class MobChestListener implements Listener {
         if (held == null || held.getType().isAir() || !held.hasItemMeta()) return;
 
         PersistentDataContainer itemData = held.getItemMeta().getPersistentDataContainer();
-        String fluidId = itemData.get(
-                new NamespacedKey(plugin, "custom_fluid_id"), PersistentDataType.STRING);
-        if ("liquid_gold".equals(fluidId)) {
-            event.setCancelled(true);
-            suppressOffHandUse(player);
-            player.sendActionBar("Liquid Gold is sealed in this build; it cannot place ordinary lava.");
-            return;
-        }
-
         String enchantmentId = itemData.get(
                 new NamespacedKey(plugin, "custom_enchantment_id"), PersistentDataType.STRING);
         if (enchantmentId == null) return;
