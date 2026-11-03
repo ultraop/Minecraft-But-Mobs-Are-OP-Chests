@@ -85,7 +85,7 @@ public final class MobChestsCommand implements CommandExecutor, TabCompleter {
                                                 @NotNull String alias, @NotNull String[] args) {
         if (args.length == 1) {
             List<String> options = new ArrayList<>(List.of("info", "help", "status"));
-            if (sender.hasPermission("ultraopmobchests.admin")) options.add("reload");
+            if (sender.hasPermission("mobchests.admin")) options.add("reload");
             return options.stream().filter(s -> s.startsWith(args[0].toLowerCase())).toList();
         }
         return List.of();
