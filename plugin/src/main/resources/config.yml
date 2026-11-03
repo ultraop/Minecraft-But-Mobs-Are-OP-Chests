@@ -53,9 +53,7 @@ rarity:
 
 liquid-gold:
   enabled: true
-  flow-interval-ticks: 5
-  horizontal-range: 7
-  vertical-range: 8
-  max-active-cells: 2048
-  diagonal-infinite-source: true
+  # Native Minecraft WATER controls flow speed, distance and infinite sources.
+  # This is only a safety cap for gold visual cells tracked by the plugin.
+  max-active-cells: 4096
   effects-duration-ticks: 200
