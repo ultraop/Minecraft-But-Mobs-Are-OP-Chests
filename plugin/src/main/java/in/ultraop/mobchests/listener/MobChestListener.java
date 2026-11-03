@@ -87,6 +87,7 @@ public final class MobChestListener implements Listener {
     private final Map<UUID, Mob> activeMobs = new HashMap<>();
     private final Map<UUID, UUID> openers = new HashMap<>();
     private final Map<UUID, Inventory> activeInventories = new HashMap<>();
+    private final Map<UUID, BukkitTask> offhandSuppressionTasks = new HashMap<>();
 
     public MobChestListener(UltraOPMobChestsPlugin plugin) {
         this.plugin = plugin;
@@ -142,13 +143,28 @@ public final class MobChestListener implements Listener {
         // LOOTED mobs use their normal vanilla interaction again.
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void handleSpecialRewardUse(PlayerInteractEvent event) {
-        if (event.getHand() != org.bukkit.inventory.EquipmentSlot.HAND) return;
         if (event.getAction() != org.bukkit.event.block.Action.RIGHT_CLICK_AIR
                 && event.getAction() != org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK) return;
 
         Player player = event.getPlayer();
+        UUID playerId = player.getUniqueId();
+
+        // PlayerInteractEvent can run once for each hand. Block the off-hand
+        // armour's native equip/use action while a plugin enchantment book is used.
+        if (event.getHand() == org.bukkit.inventory.EquipmentSlot.OFF_HAND) {
+            ItemStack offhand = player.getInventory().getItemInOffHand();
+            ItemStack mainhand = player.getInventory().getItemInMainHand();
+            if (offhandSuppressionTasks.containsKey(playerId)
+                    || isCustomEnchantmentBook(mainhand)
+                    || isLiquidGoldBucket(offhand)) {
+                event.setCancelled(true);
+            }
+            return;
+        }
+        if (event.getHand() != org.bukkit.inventory.EquipmentSlot.HAND) return;
+
         ItemStack held = player.getInventory().getItemInMainHand();
         if (held == null || held.getType().isAir() || !held.hasItemMeta()) return;
 
@@ -157,6 +173,7 @@ public final class MobChestListener implements Listener {
                 new NamespacedKey(plugin, "custom_fluid_id"), PersistentDataType.STRING);
         if ("liquid_gold".equals(fluidId)) {
             event.setCancelled(true);
+            suppressOffHandUse(player);
             player.sendActionBar("Liquid Gold is sealed in this build; it cannot place ordinary lava.");
             return;
         }
@@ -165,10 +182,14 @@ public final class MobChestListener implements Listener {
                 new NamespacedKey(plugin, "custom_enchantment_id"), PersistentDataType.STRING);
         if (enchantmentId == null) return;
 
+        // This also handles RIGHT_CLICK_AIR: Paper may mark that event as
+        // cancelled when vanilla has no default action for the held book.
         event.setCancelled(true);
-        Integer savedRank = itemData.get(
+        suppressOffHandUse(player);
+
+        Integer storedRank = itemData.get(
                 new NamespacedKey(plugin, "custom_enchantment_rank"), PersistentDataType.INTEGER);
-        int rank = savedRank == null ? 30 : Math.max(1, Math.min(255, savedRank));
+        int rank = storedRank == null ? 8 : Math.max(1, Math.min(15, storedRank));
         Enchantment enchantment = Registry.ENCHANTMENT.get(NamespacedKey.minecraft(enchantmentId));
         if (enchantment == null) {
             player.sendMessage("§cThis enchantment is not available on this server version.");
@@ -177,26 +198,76 @@ public final class MobChestListener implements Listener {
 
         ItemStack target = player.getInventory().getItemInOffHand();
         if (target == null || target.getType().isAir()) {
-            player.sendMessage("§eHold compatible gear in your off-hand, then right-click with the book.");
+            player.sendMessage("§ePlace compatible armour or a tool in your off-hand first.");
             return;
         }
         if (!enchantment.canEnchantItem(target)) {
-            player.sendMessage("§c" + enchantmentId.replace('_', ' ')
-                    + " cannot be applied to " + target.getType().name().toLowerCase().replace('_', ' ') + ".");
+            player.sendMessage("§c" + titleEnchantment(enchantmentId)
+                    + " requires compatible gear. Check the armour/tool type.");
             return;
         }
 
-        target.addUnsafeEnchantment(enchantment, rank);
-        player.getInventory().setItemInOffHand(target);
+        int currentLevel = target.getEnchantmentLevel(enchantment);
+        if (currentLevel >= rank) {
+            player.sendMessage("§eThis item already has " + titleEnchantment(enchantmentId)
+                    + " at level " + currentLevel + " or higher.");
+            return;
+        }
+
+        for (Enchantment existing : target.getEnchantments().keySet()) {
+            if (!existing.equals(enchantment)
+                    && (enchantment.conflictsWith(existing) || existing.conflictsWith(enchantment))) {
+                player.sendMessage("§c" + titleEnchantment(enchantmentId)
+                        + " conflicts with " + existing.getKey().getKey().replace('_', ' ') + ".");
+                return;
+            }
+        }
+
+        ItemStack upgraded = target.clone();
+        upgraded.addUnsafeEnchantment(enchantment, rank);
+        player.getInventory().setItemInOffHand(upgraded);
 
         ItemStack book = player.getInventory().getItemInMainHand();
         if (book.getAmount() <= 1) {
             player.getInventory().setItemInMainHand(new ItemStack(org.bukkit.Material.AIR));
         } else {
             book.setAmount(book.getAmount() - 1);
+            player.getInventory().setItemInMainHand(book);
         }
-        player.sendMessage("§aApplied " + enchantmentId.replace('_', ' ')
-                + " level " + rank + " to " + target.getType().name().toLowerCase().replace('_', ' ') + ".");
+
+        player.sendMessage("§aApplied " + titleEnchantment(enchantmentId)
+                + " " + rank + " to " + target.getType().name().toLowerCase().replace('_', ' ') + ".");
+        player.playSound(player.getLocation(), Sound.BLOCK_ENCHANTMENT_TABLE_USE, 0.7F, 1.35F);
+    }
+
+    private boolean isCustomEnchantmentBook(ItemStack item) {
+        if (item == null || item.getType().isAir() || !item.hasItemMeta()) return false;
+        return item.getItemMeta().getPersistentDataContainer().has(
+                new NamespacedKey(plugin, "custom_enchantment_id"), PersistentDataType.STRING);
+    }
+
+    private boolean isLiquidGoldBucket(ItemStack item) {
+        if (item == null || item.getType().isAir() || !item.hasItemMeta()) return false;
+        return "liquid_gold".equals(item.getItemMeta().getPersistentDataContainer().get(
+                new NamespacedKey(plugin, "custom_fluid_id"), PersistentDataType.STRING));
+    }
+
+    private String titleEnchantment(String key) {
+        StringBuilder result = new StringBuilder();
+        for (String word : key.split("_")) {
+            if (result.length() > 0) result.append(' ');
+            result.append(Character.toUpperCase(word.charAt(0))).append(word.substring(1));
+        }
+        return result.toString();
+    }
+
+    private void suppressOffHandUse(Player player) {
+        UUID id = player.getUniqueId();
+        BukkitTask previous = offhandSuppressionTasks.remove(id);
+        if (previous != null) previous.cancel();
+        BukkitTask task = Bukkit.getScheduler().runTaskLater(plugin,
+                () -> offhandSuppressionTasks.remove(id), 2L);
+        offhandSuppressionTasks.put(id, task);
     }
 
     private void freeze(Mob mob, Player player) {
@@ -224,11 +295,10 @@ public final class MobChestListener implements Listener {
     }
 
     private void applyFrozenState(Mob mob) {
-        // Keep the entity's look controller available for Mob.lookAt(),
-        // The vanilla look controller only advances while the Mob is aware. Keep the
-        // controller ticking, but pin position, gravity and navigation every tick.
-        mob.setAI(true);
-        mob.setAware(true);
+        // Stop all vanilla look/target goals so they cannot fight the chest pose.
+        // The chest pose is applied directly with setRotation while AI is disabled.
+        mob.setAI(false);
+        mob.setAware(false);
         mob.setGravity(false);
         mob.setVelocity(new Vector(0.0, 0.0, 0.0));
         mob.setFallDistance(0.0F);
@@ -274,7 +344,7 @@ public final class MobChestListener implements Listener {
                 tremble = ticks[0] % interval < Math.max(1, interval / 2)
                         ? amplitude : -amplitude;
             }
-            applyHeadLookPose(mob, anchor, tremble);
+            applyHeadPitch(mob, anchor, anchor.getPitch() + tremble);
             ticks[0]++;
         }, 1L, 1L);
         freezeTasks.put(id, task);
@@ -302,28 +372,14 @@ public final class MobChestListener implements Listener {
     }
 
     /**
-     * Use Paper's Mob look controller rather than rotating the whole entity.
-     * The real vanilla model and bounding box remain untouched. A target
-     * almost directly above the eye line raises the head/front to its maximum
-     * vanilla head pitch. This is a head-look pose, not a custom model hinge.
+     * Apply a fixed vanilla entity pitch with AI disabled. This avoids the
+     * Mob look goals alternately replacing the target and causing a head
+     * animation to flicker up/down. Body yaw and the entity dimensions remain.
      */
-    private void applyHeadLookPose(Mob mob, Location anchor, float lookUpDegrees) {
-        float angle = Math.max(-2.0F, Math.min(88.0F, lookUpDegrees));
-        double yawRadians = Math.toRadians(anchor.getYaw());
-        double distance = 4.0;
-        double radians = Math.toRadians(angle);
-        double horizontal = Math.max(0.025, distance * Math.cos(radians));
-        double vertical = distance * Math.sin(radians);
-        double dx = -Math.sin(yawRadians) * horizontal;
-        double dz = Math.cos(yawRadians) * horizontal;
-
-        Location target = new Location(anchor.getWorld(),
-                anchor.getX() + dx,
-                anchor.getY() + mob.getEyeHeight() + vertical,
-                anchor.getZ() + dz);
-
+    private void applyHeadPitch(Mob mob, Location anchor, float pitch) {
+        float clampedPitch = Math.max(-90.0F, Math.min(90.0F, pitch));
+        mob.setRotation(anchor.getYaw(), clampedPitch);
         mob.setBodyYaw(anchor.getYaw());
-        mob.lookAt(target, 360.0F, 90.0F);
     }
 
     private void beginOpening(Mob mob, Player player) {
@@ -367,7 +423,7 @@ public final class MobChestListener implements Listener {
         mob.getWorld().playSound(effectLocation, Sound.ENTITY_FIREWORK_ROCKET_LAUNCH, 0.55F, 1.2F);
         mob.getWorld().spawnParticle(Particle.END_ROD, effectLocation, 8, 0.12, 0.12, 0.12, 0.025);
 
-        animateHeadLook(mob, 0.0F, plugin.settings().openingHeadLookDegrees(),
+        animateHeadPitch(mob, anchor.getPitch(), plugin.settings().openingHeadPitchDegrees(),
                 plugin.settings().openAnimationTicks(), OPENING, () -> {
                     if (!mob.isValid() || mob.isDead()) return;
                     if (!player.isOnline()) {
@@ -396,8 +452,8 @@ public final class MobChestListener implements Listener {
                 });
     }
 
-    private void animateHeadLook(Mob mob, float startAngle, float endAngle,
-                                 int durationTicks, String expectedState, Runnable completed) {
+    private void animateHeadPitch(Mob mob, float startPitch, float endPitch,
+                                  int durationTicks, String expectedState, Runnable completed) {
         UUID id = mob.getUniqueId();
         stopTask(poseTasks.remove(id));
         int duration = Math.max(1, durationTicks);
@@ -425,8 +481,8 @@ public final class MobChestListener implements Listener {
             elapsed[0]++;
             float progress = Math.min(1.0F, elapsed[0] / (float) duration);
             float eased = progress * progress * (3.0F - 2.0F * progress);
-            float lookUp = startAngle + (endAngle - startAngle) * eased;
-            applyHeadLookPose(mob, anchor, lookUp);
+            float pitch = startPitch + (endPitch - startPitch) * eased;
+            applyHeadPitch(mob, anchor, pitch);
 
             if (elapsed[0] >= duration) {
                 stopTask(poseTasks.remove(id));
@@ -456,7 +512,7 @@ public final class MobChestListener implements Listener {
                     || mob.getLocation().distanceSquared(anchor) > 0.0001) {
                 mob.teleport(anchor);
             }
-            applyHeadLookPose(mob, anchor, lookUpDegrees);
+            applyHeadPitch(mob, anchor, -Math.abs(lookUpDegrees));
         }, 1L, 1L);
         freezeTasks.put(id, task);
     }
@@ -556,6 +612,8 @@ public final class MobChestListener implements Listener {
         persistOpenInventory(top);
 
         UUID playerId = event.getPlayer().getUniqueId();
+        BukkitTask suppression = offhandSuppressionTasks.remove(playerId);
+        if (suppression != null) suppression.cancel();
         UUID mobId = openers.entrySet().stream()
                 .filter(entry -> entry.getValue().equals(playerId))
                 .map(Map.Entry::getKey)
@@ -580,7 +638,7 @@ public final class MobChestListener implements Listener {
         Location anchor = readAnchor(mob);
         if (animateClose && mob.isValid() && anchor != null) {
             mob.getWorld().playSound(mob.getLocation(), Sound.BLOCK_CHEST_CLOSE, 0.85F, 1.0F);
-            animateHeadLook(mob, plugin.settings().openingHeadLookDegrees(), 0.0F,
+            animateHeadPitch(mob, plugin.settings().openingHeadPitchDegrees(), anchor.getPitch(),
                     plugin.settings().closeAnimationTicks(), CLOSING, () -> {
                         activeInventories.remove(mobId);
                         activeMobs.remove(mobId);
@@ -621,7 +679,7 @@ public final class MobChestListener implements Listener {
         Location anchor = readAnchor(mob);
         if (anchor != null && anchor.getWorld().equals(mob.getWorld())) {
             mob.setRotation(anchor.getYaw(), anchor.getPitch());
-            applyHeadLookPose(mob, anchor, 0.0F);
+            mob.setBodyYaw(anchor.getYaw());
         }
         if (mob instanceof Creeper creeper) disarmCreeper(creeper);
 
@@ -806,6 +864,8 @@ public final class MobChestListener implements Listener {
         freezeTasks.clear();
         for (BukkitTask task : poseTasks.values()) task.cancel();
         poseTasks.clear();
+        for (BukkitTask task : offhandSuppressionTasks.values()) task.cancel();
+        offhandSuppressionTasks.clear();
 
         for (UUID mobId : new ArrayList<>(activeMobs.keySet())) {
             Mob mob = activeMobs.get(mobId);
