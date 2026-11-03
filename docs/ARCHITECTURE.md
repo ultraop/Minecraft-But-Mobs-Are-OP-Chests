@@ -1,48 +1,36 @@
 # Architecture
 
-## Target
+## Target and components
 
-Minecraft Java 26.3, Paper server, Java 25. The current plugin requires neither a client gameplay mod nor a resource pack.
+Minecraft Java 26.3, Paper server, Java 25. The server uses a Paper plugin. A companion resource pack is optional for gameplay but required to display Liquid Gold's distinct golden bucket and flow textures. No client gameplay mod, Fabric API or datapack is required.
 
-## Stable vanilla pose
+## Liquid Gold service
 
-The original Mob remains visible at its native dimensions. On the first click the plugin saves the original AI/awareness/gravity/collision state and its exact position/rotation, then disables AI and awareness.
+LiquidGoldService uses vanilla WATER block states as the physical substrate for swimming and collision, but cancels normal vanilla fluid spread for the tracked cells. A scheduled server task performs a bounded breadth-first flow simulation, with horizontal and vertical limits from config.
 
-The opening animation applies `Entity.setRotation(yaw, pitch)` directly, with body yaw restored to the saved orientation. The pitch moves from the Mob's saved pitch to approximately -88 degrees. Since AI is disabled throughout OPENING, LOOT_OPEN and CLOSING, normal look goals cannot repeatedly overwrite the pose. While the GUI is open, a hold task pins the Mob and keeps that pitch fixed.
+- Source and flow cells are tracked by world/coordinates.
+- Per-cell ItemDisplay entities provide the pale gold visual overlay; display PDC stores level, source flag and coordinates so cells can be rediscovered on chunk load.
+- Two diagonally opposite source cells in a supported 2×2 square create the other two source cells.
+- Right-click a block with Liquid Gold to pour into the adjacent block, subject to BlockPlaceEvent protection checks.
+- Right-click a source with an empty bucket to collect it.
+- Right-click air with the filled bucket to drink it and return an empty bucket.
+- Player bounding-box intersection with tracked cells grants the same 10-second powers; the timer refreshes while the player stays immersed.
+- Normal Water/Lava and Liquid Gold flow are isolated from one another.
 
-This is a pitch-based approximation, not independent head-bone manipulation or a real hinged chest model. Mob renderers may interpret pitch differently. The dimensions and hitbox are not changed.
+The plugin simulation manages flow, source rules, bucket operations and effects. The resource pack only draws the golden colour. This is water-backed plugin simulation rather than a new native fluid block registered inside the Minecraft engine.
 
-## State machine
+## Mob chest lifecycle
 
-NORMAL -> FROZEN -> OPENING -> LOOT_OPEN -> CLOSING -> LOOTED
+The original Mob remains visible and at native dimensions. AI is disabled during opening and the vanilla entity pitch is animated while body yaw remains at its saved orientation. This is not a true split-body hinge; separate tentacle/bone animations require a custom renderer.
 
-First click freezes and trembles subtly. Second click animates the pitch and opens one GUI. Closing consumes the chest and restores the original Mob state. A used Mob cannot open another chest.
+State: NORMAL → FROZEN → OPENING → LOOT_OPEN → CLOSING → LOOTED.
 
-## Enchantment books
+Loot stacks are generated once, saved on the Mob and refreshed as the GUI changes. Half the stacks are ejected before the GUI opens; the other half remains in the GUI. Used Mob death drops only the remaining chest loot while preserving normal XP.
 
-Custom books store an enchantment key and bounded level in PersistentDataContainer, not unsafe stored-enchantment data. This avoids client tooltip translation keys for very high vanilla stored levels.
+## Runtime safety
 
-PlayerInteractEvent is handled for both hands, including initially-cancelled right-click-air events. While a custom book is in the main hand, the off-hand event is cancelled so armour/tools are not equipped or used before the plugin reads the target. The plugin validates `Enchantment.canEnchantItem`, existing levels and conflicts, then applies the bounded level with `addUnsafeEnchantment`. The book is consumed only after success.
-
-Ordinary Vanilla Enchanted Books are generated separately with standard stored levels and remain usable in an anvil.
-
-## Loot and dimension rules
-
-The generator creates 14–18 base occupied stacks plus separate special reward rolls. It mixes family pools with blocks, stone variants, dyes, bones, ink, books, potions, lanterns, trims, food, crafting resources and decor. Maps are restricted to explorer/trader-like Mob types.
-
-The current world environment controls progression:
-- Overworld: obsidian, flint and steel, iron and common building supplies.
-- Nether: quartz, blaze rods, gold and rare ancient debris/Netherite progression.
-- End: Ender, chorus, End Stone and Shulker progression.
-
-A 50% burst (rounded up) is removed from the GUI before being spawned as real item entities. Reduced horizontal velocity targets a roughly 3–4 block scatter radius. The remaining GUI contents are serialized to the Mob's PersistentDataContainer.
-
-When a used Mob dies, vanilla item drops are cleared and the remaining saved chest items are dropped naturally. Normal vanilla XP remains. A Mob whose chest was never opened keeps normal vanilla item drops and XP.
-
-## Limitations
-
-- No custom resource pack is required; custom item textures are therefore unavailable.
-- The generic pitch pose is not a true lid hinge. Independent squid tentacles and arbitrary model bones need a custom renderer.
-- Liquid Gold fluid flow/infinite sources and its ten-second powers are not implemented.
-- Individual artifact abilities, Legend points and boss progression remain future work.
-- CI validates compilation/package contents, not visual appearance in a live Paper client.
+- Flow task is cancelled on plugin disable; cell data remains in persistent chunk ItemDisplay metadata.
+- Chunk load re-discovers fluid cells and schedules flow recalculation.
+- Flowing cells cannot be bucket-collected; only source blocks return a Liquid Gold Bucket.
+- Region protection is checked for placement using a BlockPlaceEvent.
+- Liquid Gold uses separate item models/textures from ordinary Water/Lava.

@@ -1,125 +1,112 @@
 # Mob Chests — Mobs Are OP Chests
 
-**Paper 26.3 plugin | Java 25 | No client mod, resource pack or datapack required**
+**Paper 26.3 plugin | Java 25 | Liquid Gold companion resource pack**
 
-## Current mob animation
+## Components
 
-The old ItemDisplay/resource-pack model path is retired. The original vanilla Mob stays visible and keeps its normal dimensions. During the chest animation the plugin disables AI and applies a controlled entity pitch with `Entity.setRotation(yaw, pitch)`, while holding the body yaw at its saved value. This prevents the Mob's normal look goals from fighting the pose and repeatedly turning the head up and down.
+- **Server:** install the Paper plugin JAR only. No Fabric API, client gameplay mod or datapack is required.
+- **Client visual pack:** install the companion Liquid Gold resource pack to see the pale-gold bucket and animated gold fluid surface. Without it, plugin gameplay still runs, but the custom golden texture is not visible.
 
-- First right-click: freezes the Mob in place with a subtle pitch tremble.
-- Second right-click: smoothly raises the vanilla pitch to approximately -88 degrees.
-- While the GUI is open: the open pitch is held steady.
-- Closing the GUI: pitch, AI, awareness, gravity, collision and the saved rotation are restored.
-- The Mob keeps its original width, height, hitbox and vanilla texture.
+## Liquid Gold
+
+Liquid Gold is a separate custom fluid simulation, not ordinary lava and not a reskinned lava block.
+
+- Its filled bucket has a pale yellow/golden icon, distinct from the orange-red Lava Bucket.
+- Right-click a block with the bucket to pour Liquid Gold into the adjacent space.
+- The fluid uses vanilla water blocks underneath, so players can swim and dive through it. The plugin cancels vanilla water spreading and calculates the gold fluid's own flow.
+- Right-click a Liquid Gold **source** with an empty Bucket to collect it. Flowing cells cannot be collected.
+- Two source blocks placed diagonally opposite in a supported 2×2 square create the other two source blocks, producing a renewable four-source pool.
+- Right-click with the bucket in the air (not at a block) to drink it, like a milk bucket. It returns an empty bucket.
+- Entering or diving into the pool also grants its powers.
+- Drinking or entering grants Regeneration, Speed, Strength, Resistance, Fire Resistance, Water Breathing, Haste, Jump Boost, Absorption, Night Vision, Slow Falling, Dolphin's Grace and Conduit Power for 10 seconds.
+- Source and flow cells are tracked with persistent ItemDisplay metadata so they can be rediscovered when loaded chunks return.
+
+The custom visuals use an optional 26.3 resource pack with pack format **97.1**. It changes only the Liquid Gold bucket/fluid models; vanilla Lava and Water textures remain unchanged.
+
+### Important Liquid Gold note
+
+The plugin simulates flow and infinite sources using water-backed blocks. It is not a new native Minecraft block-state fluid registered inside the game engine. The water block supplies collision/swimming; the plugin manages placement, flow, collection, effects and source regeneration. Flow and visuals need live-client testing on the target server.
+
+## Mob chest interaction
+
+1. Mob starts with normal vanilla behaviour.
+2. First right-click freezes the Mob in place with a very subtle tremble. It does not sit, become tamed or become a pet.
+3. Second right-click applies a smooth vanilla entity-pitch animation toward approximately -88 degrees. The real Mob keeps its normal dimensions; AI/look goals are disabled while the chest is open so the pose does not flicker up/down.
+4. A chest/firework sound and particles play. Larger Mobs have a slightly louder opening sound than small animals.
+5. Half of the generated loot stacks (rounded up) pop upward with light horizontal scatter, targeting about 3–4 blocks from the Mob.
+6. The other half stays in one inventory GUI. Burst stacks are removed from the GUI before being spawned, so there is no duplicate.
+7. Closing the GUI after taking all, some or none of the items consumes that chest permanently.
+8. On a used Mob's death, only remaining saved chest items replace its normal item drops. Normal vanilla XP remains.
 
 This is a vanilla pitch pose, not a true split-body chest hinge. Different Mob renderers may interpret pitch differently; Paper's public API does not expose independent rotation for every head, abdomen, leg or squid tentacle.
 
-## Chest and loot behaviour
-
-- One chest session per Mob. Closing it after taking all, some or none of the contents permanently consumes that chest.
-- Each chest generates 14–18 base occupied stacks, plus any separate special rewards. Stack quantities vary.
-- Half of the occupied stacks (rounded up) are removed from the GUI and launched outward/upward. Horizontal velocity is intentionally low to keep the items within roughly 3–4 blocks of the Mob.
-- The other half stays in the GUI. Ejected items are removed before spawning, so they cannot be duplicated.
-- On a used Mob's death, normal vanilla item drops are replaced by the remaining saved chest contents. Normal vanilla XP remains. If the chest was never opened, normal vanilla drops and XP are preserved.
-
 ## Loot variety
 
-Common pools now mix family-specific loot with broad survival items:
-
-- Blocks and stone: stone, dirt, gravel, sand, granite, diorite, andesite, tuff, calcite, deepslate, cobbled deepslate, moss, mud, glass and dimension-themed blocks.
-- Tools: wooden/stone starter tools in common loot; iron tools, crossbows, fishing rods, shears, spyglasses, brushes, shields, goat horns and recovery compasses in uncommon loot.
-- Materials: bones, bone meal, ink sacs, glow ink sacs, all dye colours, feathers, string, leather, metals, coal, redstone, lapis, seeds and crops.
-- Utility/decor: paper, clocks, books, chains, lanterns, candles, barrels, chests, name tags, leads, saddles and item frames.
-- Signed written books with short explorer notes.
-- Potions, splash potions and lingering potions from a safe set of vanilla potion types.
-- Normal vanilla Enchanted Books with valid vanilla levels; these remain usable in an anvil. They are distinct from plugin-applied Ancient Enchanted Books.
-- Smithing templates and armour trims appear in uncommon pools.
-- Maps are limited to explorer/trader-type Mob pools, not added to every Mob.
-
-Dimension progression remains separate:
-- Overworld: obsidian, flint and steel, iron and building/navigation supplies.
-- Nether: quartz, blaze rods, gold and rare ancient debris/Netherite scrap/ingot.
-- End: End-related and Shulker progression supplies.
-
-Netherite progression rewards are only selected in the Nether pool. Creative/admin-only items such as command blocks, barrier, bedrock, debug stick, knowledge book, spawners and spawn eggs are filtered out of random loot.
+Each chest generates 14–18 base occupied stacks plus separately rolled special rewards. Current pools include:
+- **Blocks and stone:** stone, dirt, gravel, sand, granite, diorite, andesite, tuff, calcite, deepslate, cobbled deepslate, moss, mud, glass and dimension-themed blocks.
+- **Tools:** wooden/stone starter tools in common loot; iron tools, crossbows, fishing rods, shears, spyglasses, brushes, shields, goat horns and recovery compasses in uncommon loot.
+- **Materials:** bones, bone meal, ink sacs, glow ink sacs, dyes, lapis, redstone, metals, seeds and crops.
+- **Utility/decor:** paper, compasses, clocks, books, chains, lanterns, candles, barrels, name tags, leads, saddles and item frames.
+- **Books and potions:** signed written books, normal anvil-compatible Vanilla Enchanted Books, potions, splash potions and lingering potions.
+- **Armor trims:** templates moved to the rare tier; when rolled, one template is given, never a pile.
+- **Maps:** only Explorer/Trader-type pools, and one map per reward.
+- **Liquid Gold Bucket:** 8% rare reward chance. It is special and not included in every mob.
+- **Dimension progression:** Netherite scrap/ancient debris/ingot only in Nether rare pools; Overworld and End have their own pools.
 
 ## Custom Enchantment Books
 
-Custom Ancient Enchanted Books use a plugin-applied enchantment ID and a bounded level. They do not store unsafe level 30–60 enchantments in Vanilla EnchantmentStorageMeta; this prevents the client tooltip from showing strings such as `enchantment.level.46`.
+Ancient Enchanted Books store an enchantment ID and bounded custom level in plugin metadata, not unsafe Vanilla StoredEnchantments. This avoids the untranslated enchantment.level.46 line.
 
-**How to apply:** hold the Ancient Enchanted Book in the main hand, put the compatible item in the off-hand, then right-click. The plugin cancels the off-hand's normal equip/use action while the book is being used, checks compatibility and conflicts, applies the enchantment and consumes the book only on success.
+**How to apply:** hold the Ancient Enchanted Book in the main hand, put compatible gear in the off-hand, then right-click. The plugin blocks the off-hand's normal equip/use action, validates gear compatibility and enchantment conflicts, applies the level, and consumes one book only on success.
 
-Custom ranges are intentionally stronger than vanilla but bounded:
+Ordinary Vanilla Enchanted Books are separate loot and remain anvil-compatible.
 
-| Enchantment | Custom level range | Compatible gear |
-|---|---:|---|
-| Sharpness, Smite, Bane of Arthropods | 8–12 | Sword / compatible weapon |
-| Power | 8–12 | Bow |
-| Protection | 6–8 | Armour |
-| Blast, Fire, Projectile Protection | 5–7 | Armour |
-| Efficiency | 8–10 | Tools |
-| Unbreaking | 6–9 | Compatible gear |
-| Fortune, Looting | 4–6 | Compatible tool / sword |
-| Feather Falling | 6–8 | Boots |
-| Respiration | 4–6 | Helmet |
-| Sweeping Edge | 4–6 | Sword |
-| Fire Aspect | 2–4 | Sword |
-| Knockback | 2–4 | Sword |
-| Depth Strider, Soul Speed | 4–5 | Boots |
-| Swift Sneak | 4–5 | Leggings |
-| Thorns | 4–5 | Armour |
-| Quick Charge, Piercing | 3–6 | Crossbow |
-| Impaling, Loyalty, Riptide | 3–8 | Trident |
+## Requirements and installation
 
-The compatibility check means, for example, Respiration will only apply to a helmet and Feather Falling only to boots. Conflicting enchantments are rejected. Mending and other non-scaling level-I enchantments remain available as ordinary vanilla Enchanted Books instead of being given meaningless high levels.
-
-## Special rewards and known limits
-
-- Golden Potato, Golden Porkchop and Golden Bread are custom-named vanilla items.
-- Emerald Armor is a single green-dyed leather armour piece, not a complete set.
-- Liquid Gold Bucket has a 35% test-build chance and a sealed vanilla bucket icon. The actual flowing gold fluid, bucket placement/scooping, infinite-source behaviour and ten-second abilities are not implemented yet; its right-click is blocked so it cannot place ordinary lava.
-- Named relics and equipment are loot foundations. Their individual powers, custom enchantment effects beyond the listed vanilla enchantments, Legend points and boss progression are future work.
-- The no-resource-pack build cannot provide custom mob or item textures.
-- Independent squid tentacle/body-bone animation still requires a client renderer or custom model system.
-
-## Requirements and install
-
-| Requirement | Target |
+| Component | Target |
 |---|---|
 | Minecraft Java | 26.3 |
 | Server | Paper 26.3 |
 | Java | 25 |
+| Server plugin | Required |
 | Client gameplay mod | Not required |
-| Resource pack / datapack | Not required |
+| Datapack | Not required |
+| Liquid Gold Resource Pack | Required for gold visuals |
 
 1. Stop the Paper server.
-2. Replace the old plugin JAR in `plugins/` with the new JAR.
-3. Remove any old custom Mob Chests resource pack or datapack from previous builds; this version does not use them.
-4. Start Paper 26.3 with Java 25.
-5. The new config folder is `plugins/MobChests/`.
-6. Use `/mobchests info`, `/mobchests status` and `/mobchests reload`.
+2. Put the new plugin JAR in the server's plugins folder.
+3. Start Paper 26.3 using Java 25.
+4. Download the companion MobChests-Liquid-Gold-ResourcePack.zip from the same build artifact.
+5. Put that ZIP in the client's .minecraft/resourcepacks folder and enable it in Options → Resource Packs. It must not be nested inside another ZIP or folder.
+6. Run /mobchests info and /mobchests status.
+
+The resource pack can also be hosted and assigned through the server's normal resource-pack setting, but manual client installation is sufficient for testing.
 
 ## Build
 
 ~~~bash
 gradle clean build
+python3 resource-pack/build_pack.py
 ~~~
+
+The GitHub Actions artifact contains the Paper plugin JAR and the separate resource pack ZIP.
 
 ## Commands
 
 | Command | Permission | Purpose |
 |---|---|---|
-| `/mobchests info` | Everyone | Version and creator information |
-| `/mobchests help` | Everyone | Command guide |
-| `/mobchests status` | Everyone | Runtime and feature status |
-| `/mobchests reload` | `mobchests.admin` | Reload configuration |
+| /mobchests info | Everyone | Version and creator information |
+| /mobchests help | Everyone | Command guide |
+| /mobchests status | Everyone | Runtime and Mob coverage status |
+| /mobchests reload | mobchests.admin | Reload configuration |
 
 ## Further documentation
 
-- [Architecture](docs/ARCHITECTURE.md)
-- [Loot design](docs/LOOT_DESIGN.md)
-- [Enchantment books](docs/ENCHANTMENT_BOOKS.md)
-- [Testing checklist](docs/TESTING.md)
+- Architecture
+- Loot design
+- Enchantment books
+- Resource pack
+- Testing checklist
 
 ## License
 

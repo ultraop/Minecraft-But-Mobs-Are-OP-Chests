@@ -1,5 +1,5 @@
 # Mob Chests — Minecraft Java 26.3 | Paper | Java 25
-# No client mod or resource pack is required for mob chest interactions.
+# No client gameplay mod is required. The Liquid Gold companion pack is needed for gold visuals.
 
 settings:
   language: en
