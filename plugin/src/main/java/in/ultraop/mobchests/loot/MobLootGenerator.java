@@ -29,7 +29,13 @@ import java.util.concurrent.ThreadLocalRandom;
  * Mob-family and dimension-aware loot generator used by configured vanilla Mobs.
  */
 public final class MobLootGenerator {
-    private static final int INVENTORY_SIZE = 54;
+    private static final int SINGLE_CHEST_SIZE = 27;
+    private static final int DOUBLE_CHEST_SIZE = 54;
+
+    /** Passive/common mobs use a single chest; combat mobs and bosses use a double chest. */
+    public static int inventorySize(EntityType type) {
+        return tier(type) == MobTier.COMMON ? SINGLE_CHEST_SIZE : DOUBLE_CHEST_SIZE;
+    }
     private static final List<String> GENERIC_COMMON = List.of(
             "IRON_NUGGET", "COAL", "BREAD", "REDSTONE", "LAPIS_LAZULI", "COPPER_INGOT");
     private static final List<String> PASSIVE_COMMON = List.of(
@@ -49,14 +55,21 @@ public final class MobLootGenerator {
                                    UltraOPMobChestsPlugin plugin) {
         ThreadLocalRandom random = ThreadLocalRandom.current();
         MobChestInventoryHolder holder = new MobChestInventoryHolder(mobId);
-        Inventory inventory = Bukkit.createInventory(holder, INVENTORY_SIZE,
+        Inventory inventory = Bukkit.createInventory(holder, inventorySize(type),
                 Component.text(displayName(type.name()) + " Treasure", NamedTextColor.GOLD));
         holder.bind(inventory);
 
-        int configuredMinimum = plugin.getConfig().getInt("loot.minimum-item-stacks", 0);
-        // Treat old pre-reduction configs (e.g. 14 minimum stacks) as the new zero minimum.
-        int minStacks = configuredMinimum > 4 ? 0 : Math.max(0, configuredMinimum);
-        int maxStacks = clamp(plugin.getConfig().getInt("loot.maximum-item-stacks", 4), minStacks, 4);
+        // Loot quantity scales by threat: tiny/passive mobs stay modest, while
+        // combat mobs and bosses always have something worth opening the chest for.
+        int configuredMaximum = clamp(plugin.getConfig().getInt("loot.maximum-item-stacks", 5), 1, 6);
+        int[] range = switch (tier(type)) {
+            case COMMON -> new int[]{1, 2};
+            case MID -> new int[]{2, 3};
+            case STRONG -> new int[]{3, 4};
+            case BOSS -> new int[]{4, 5};
+        };
+        int minStacks = Math.min(range[0], configuredMaximum);
+        int maxStacks = Math.min(range[1], configuredMaximum);
         int stacks = random.nextInt(minStacks, maxStacks + 1);
         List<Integer> slots = new ArrayList<>();
         for (int slot = 0; slot < inventory.getSize(); slot++) slots.add(slot);
@@ -69,9 +82,9 @@ public final class MobLootGenerator {
         int nextSpecialSlot = stacks;
         double gearChance = switch (tier(type)) {
             case COMMON -> chance(plugin, "loot.tier-equipment-chance.common", 0.01);
-            case MID -> chance(plugin, "loot.tier-equipment-chance.mid", 0.01);
-            case STRONG -> chance(plugin, "loot.tier-equipment-chance.strong", 0.03);
-            case BOSS -> chance(plugin, "loot.tier-equipment-chance.boss", 0.05);
+            case MID -> chance(plugin, "loot.tier-equipment-chance.mid", 0.04);
+            case STRONG -> chance(plugin, "loot.tier-equipment-chance.strong", 0.12);
+            case BOSS -> chance(plugin, "loot.tier-equipment-chance.boss", 0.35);
         };
         // Bat Elytra chance is independent of the normal roll count, replacing one slot if needed.
         if (type == EntityType.BAT
@@ -122,6 +135,7 @@ public final class MobLootGenerator {
     private static ItemStack reward(EntityType type, World.Environment environment, Rarity rarity,
                                     UltraOPMobChestsPlugin plugin,
                                     ThreadLocalRandom random) {
+        if (type == EntityType.WARDEN) return wardenReward(random, rarity);
         return switch (rarity) {
             case COMMON -> createLootStack(randomMaterial(commonPool(type, environment)), random, 1, 4);
             case UNCOMMON -> createLootStack(randomMaterial(uncommonPool(type, environment)), random, 1, 2);
@@ -135,6 +149,49 @@ public final class MobLootGenerator {
         };
     }
 
+    private static ItemStack wardenReward(ThreadLocalRandom random, Rarity rarity) {
+        // Warden treasure is deliberately high-value, varied, and never an empty roll.
+        List<Material> core = List.of(Material.ECHO_SHARD, Material.SCULK_CATALYST,
+                Material.DIAMOND, Material.EMERALD, Material.GOLDEN_APPLE,
+                Material.EXPERIENCE_BOTTLE, Material.DIAMOND_SWORD,
+                Material.DIAMOND_PICKAXE, Material.DIAMOND_CHESTPLATE,
+                Material.DIAMOND_LEGGINGS, Material.DIAMOND_BOOTS,
+                Material.DIAMOND_HELMET, Material.BOW, Material.CROSSBOW,
+                Material.ARROW, Material.ENCHANTED_BOOK);
+        List<Material> premium = List.of(Material.NETHERITE_CHESTPLATE,
+                Material.NETHERITE_BOOTS, Material.NETHERITE_LEGGINGS,
+                Material.NETHERITE_HELMET, Material.NETHERITE_SWORD,
+                Material.NETHERITE_AXE, Material.TOTEM_OF_UNDYING,
+                Material.NETHERITE_INGOT, Material.SILENCE_ARMOR_TRIM_SMITHING_TEMPLATE);
+        Material chosen = (rarity == Rarity.EPIC || rarity == Rarity.LEGENDARY
+                || rarity == Rarity.MYTHIC) && random.nextDouble() < 0.55
+                ? premium.get(random.nextInt(premium.size()))
+                : core.get(random.nextInt(core.size()));
+        if (chosen == Material.ENCHANTED_BOOK) return vanillaEnchantedBook(random);
+        if (chosen == Material.BOW || chosen == Material.CROSSBOW
+                || chosen.name().endsWith("_SWORD") || chosen.name().endsWith("_CHESTPLATE")
+                || chosen.name().endsWith("_LEGGINGS") || chosen.name().endsWith("_BOOTS")
+                || chosen.name().endsWith("_HELMET") || chosen == Material.DIAMOND_PICKAXE
+                || chosen == Material.DIAMOND_AXE || chosen == Material.NETHERITE_AXE) {
+            ItemStack gear = new ItemStack(chosen);
+            ItemMeta meta = gear.getItemMeta();
+            String enchantKey = chosen == Material.BOW ? "power"
+                    : chosen == Material.CROSSBOW ? "quick_charge"
+                    : chosen.name().endsWith("_SWORD") ? "sharpness"
+                    : "protection";
+            Enchantment enchantment = Registry.ENCHANTMENT.get(NamespacedKey.minecraft(enchantKey));
+            if (enchantment != null) meta.addEnchant(enchantment,
+                    random.nextInt(1, chosen.name().startsWith("NETHERITE") ? 6 : 4), true);
+            if (random.nextDouble() < 0.22) {
+                Enchantment extra = Registry.ENCHANTMENT.get(NamespacedKey.minecraft("mending"));
+                if (extra != null) meta.addEnchant(extra, 1, true);
+            }
+            gear.setItemMeta(meta);
+            return gear;
+        }
+        return new ItemStack(chosen, 1);
+    }
+
     private static List<String> familyCommonPool(EntityType type) {
         String name = type.name();
         if (name.equals("COW")) return List.of("BEEF", "LEATHER", "WHEAT", "BREAD", "APPLE");
@@ -142,6 +199,8 @@ public final class MobLootGenerator {
             return List.of("PORKCHOP", "CARROT", "POTATO", "LEATHER", "GOLD_NUGGET");
         }
         if (name.equals("SHEEP")) return List.of("MUTTON", "WHITE_WOOL", "STRING", "WHEAT");
+        if (name.equals("PARROT")) return List.of("FEATHER", "WHEAT_SEEDS", "MELON_SEEDS",
+                "PUMPKIN_SEEDS", "COCOA_BEANS", "GOLD_NUGGET");
         if (name.equals("CHICKEN")) return List.of("CHICKEN", "FEATHER", "EGG", "WHEAT_SEEDS");
         if (name.contains("SKELETON") || name.equals("BOGGED")) return SKELETON_COMMON;
         if (name.equals("ZOMBIE") || name.equals("DROWNED") || name.equals("HUSK")
@@ -160,7 +219,8 @@ public final class MobLootGenerator {
                 || name.equals("SALMON") || name.equals("PUFFERFISH") || name.equals("TROPICAL_FISH")) {
             return AQUATIC_COMMON;
         }
-        if (name.equals("WARDEN")) return List.of("SCULK_CATALYST", "ECHO_SHARD", "SCULK", "AMETHYST_SHARD");
+        if (name.equals("WARDEN")) return List.of("ECHO_SHARD", "SCULK_CATALYST", "DIAMOND",
+                "EMERALD", "GOLDEN_APPLE", "EXPERIENCE_BOTTLE", "DIAMOND_SWORD", "BOW");
         if (name.equals("ENDER_DRAGON") || name.equals("WITHER")) {
             return List.of("DIAMOND", "GOLD_INGOT", "EXPERIENCE_BOTTLE", "ENDER_PEARL");
         }
@@ -169,8 +229,12 @@ public final class MobLootGenerator {
     }
 
     private static List<String> commonPool(EntityType type, World.Environment environment) {
-        // Keep common drops practical and compact; avoid flooding players with
-        // decorative blocks, dye piles and low-value starter tools.
+        // Passive creatures use a tighter species pool so they do not receive
+        // random terrain blocks or combat-only loot.
+        if (tier(type) == MobTier.COMMON) {
+            return new ArrayList<>(familyCommonPool(type));
+        }
+        // Keep combat drops practical and compact.
         List<String> pool = new ArrayList<>(familyCommonPool(type));
         pool.addAll(List.of(
                 "COAL", "IRON_NUGGET", "COPPER_INGOT", "REDSTONE", "LAPIS_LAZULI",
