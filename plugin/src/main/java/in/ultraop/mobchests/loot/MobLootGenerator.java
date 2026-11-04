@@ -77,10 +77,10 @@ public final class MobLootGenerator {
         if (type == EntityType.BAT
                 && random.nextDouble() < chance(plugin, "loot.bat-elytra-chance", 0.02)) {
             inventory.setItem(slots.get(0), new ItemStack(Material.ELYTRA, 1));
-        } else if (nextSpecialSlot < Math.min(4, slots.size())
-                && random.nextDouble() < gearChance) {
-            // Special gear occupies one of the four allowed item slots, never a fifth.
-            inventory.setItem(slots.get(nextSpecialSlot), tierEquipment(type, random));
+        } else if (random.nextDouble() < gearChance) {
+            // Special gear occupies one of the four allowed item slots, replacing a normal item if full.
+            int gearSlot = nextSpecialSlot < 4 ? nextSpecialSlot : random.nextInt(4);
+            inventory.setItem(slots.get(gearSlot), tierEquipment(type, random));
         }
         return inventory;
     }
