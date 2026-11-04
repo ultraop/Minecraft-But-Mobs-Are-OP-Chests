@@ -10,8 +10,6 @@ import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
-import org.bukkit.Registry;
-import org.bukkit.enchantments.Enchantment;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.entity.Creeper;
@@ -29,14 +27,12 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
-import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.world.ChunkLoadEvent;
 import org.bukkit.event.world.ChunkUnloadEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.inventory.meta.EnchantmentStorageMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.scheduler.BukkitTask;
@@ -92,7 +88,6 @@ public final class MobChestListener implements Listener {
     private final Map<UUID, Mob> activeMobs = new HashMap<>();
     private final Map<UUID, UUID> openers = new HashMap<>();
     private final Map<UUID, Inventory> activeInventories = new HashMap<>();
-    private final Map<UUID, BukkitTask> offhandSuppressionTasks = new HashMap<>();
 
     public MobChestListener(UltraOPMobChestsPlugin plugin) {
         this.plugin = plugin;
@@ -149,202 +144,6 @@ public final class MobChestListener implements Listener {
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
-    public void handleSpecialRewardUse(PlayerInteractEvent event) {
-        if (event.getAction() != org.bukkit.event.block.Action.RIGHT_CLICK_AIR
-                && event.getAction() != org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK) return;
-
-        Player player = event.getPlayer();
-        UUID playerId = player.getUniqueId();
-
-        // PlayerInteractEvent can run once for each hand. Block the off-hand
-        // armour's native equip/use action while a plugin enchantment book is used.
-        if (event.getHand() == org.bukkit.inventory.EquipmentSlot.OFF_HAND) {
-            ItemStack offhand = player.getInventory().getItemInOffHand();
-            ItemStack mainhand = player.getInventory().getItemInMainHand();
-            if (offhandSuppressionTasks.containsKey(playerId)
-                    || isCustomEnchantmentBook(mainhand)
-                    || isLiquidGoldBucket(offhand)) {
-                event.setCancelled(true);
-            }
-            return;
-        }
-        if (event.getHand() != org.bukkit.inventory.EquipmentSlot.HAND) return;
-
-        ItemStack held = player.getInventory().getItemInMainHand();
-        if (held == null || held.getType().isAir() || !held.hasItemMeta()) return;
-
-        PersistentDataContainer itemData = held.getItemMeta().getPersistentDataContainer();
-        String enchantmentId = itemData.get(
-                new NamespacedKey(plugin, "custom_enchantment_id"), PersistentDataType.STRING);
-        if (enchantmentId == null) return;
-
-        // This also handles RIGHT_CLICK_AIR: Paper may mark that event as
-        // cancelled when vanilla has no default action for the held book.
-        event.setCancelled(true);
-        suppressOffHandUse(player);
-
-        Integer storedRank = itemData.get(
-                new NamespacedKey(plugin, "custom_enchantment_rank"), PersistentDataType.INTEGER);
-        int rank = storedRank == null ? 8
-                : Math.max(1, Math.min(safeMaximumCustomLevel(enchantmentId), storedRank));
-
-        // Normalise legacy and current custom books on use. Custom ranks live
-        // in PDC only; remove any old Vanilla StoredEnchantments and replace
-        // the tooltip with the clamped level so enchantment.level.46 is gone.
-        ItemMeta customBookMeta = held.getItemMeta();
-        if (customBookMeta instanceof EnchantmentStorageMeta legacyMeta
-                && !legacyMeta.getStoredEnchants().isEmpty()) {
-            for (Enchantment oldEnchantment : new ArrayList<>(legacyMeta.getStoredEnchants().keySet())) {
-                legacyMeta.removeStoredEnchant(oldEnchantment);
-            }
-        }
-        customBookMeta.getPersistentDataContainer().set(
-                new NamespacedKey(plugin, "custom_enchantment_rank"), PersistentDataType.INTEGER, rank);
-        customBookMeta.displayName(Component.text("Ancient Enchanted Book", NamedTextColor.LIGHT_PURPLE)
-                .decoration(TextDecoration.ITALIC, TextDecoration.State.FALSE)
-                .decoration(TextDecoration.BOLD, TextDecoration.State.TRUE));
-        customBookMeta.lore(List.of(
-                Component.text("Enchantment: " + titleEnchantment(enchantmentId), NamedTextColor.GOLD)
-                        .decoration(TextDecoration.ITALIC, TextDecoration.State.FALSE),
-                Component.text("Level: " + rank, NamedTextColor.AQUA)
-                        .decoration(TextDecoration.ITALIC, TextDecoration.State.FALSE),
-                Component.text("Hold compatible gear in your off-hand.", NamedTextColor.GRAY)
-                        .decoration(TextDecoration.ITALIC, TextDecoration.State.FALSE),
-                Component.text("Right-click while holding this book.", NamedTextColor.GRAY)
-                        .decoration(TextDecoration.ITALIC, TextDecoration.State.FALSE)));
-        held.setItemMeta(customBookMeta);
-        player.getInventory().setItemInMainHand(held);
-
-        Enchantment enchantment = Registry.ENCHANTMENT.get(NamespacedKey.minecraft(enchantmentId));
-        if (enchantment == null) {
-            player.sendMessage("§cThis enchantment is not available on this server version.");
-            return;
-        }
-
-        ItemStack target = player.getInventory().getItemInOffHand();
-        if (target == null || target.getType().isAir()) {
-            player.sendMessage("§ePlace compatible armour or a tool in your off-hand first.");
-            return;
-        }
-        if (!enchantment.canEnchantItem(target) || !supportsTarget(enchantmentId, target)) {
-            player.sendMessage("§c" + titleEnchantment(enchantmentId)
-                    + " requires compatible gear. Check the armour/tool type.");
-            return;
-        }
-
-        int currentLevel = target.getEnchantmentLevel(enchantment);
-        if (currentLevel >= rank) {
-            player.sendMessage("§eThis item already has " + titleEnchantment(enchantmentId)
-                    + " at level " + currentLevel + " or higher.");
-            return;
-        }
-
-        for (Enchantment existing : target.getEnchantments().keySet()) {
-            if (!existing.equals(enchantment)
-                    && (enchantment.conflictsWith(existing) || existing.conflictsWith(enchantment))) {
-                player.sendMessage("§c" + titleEnchantment(enchantmentId)
-                        + " conflicts with " + existing.getKey().getKey().replace('_', ' ') + ".");
-                return;
-            }
-        }
-
-        ItemStack upgraded = target.clone();
-        upgraded.addUnsafeEnchantment(enchantment, rank);
-        player.getInventory().setItemInOffHand(upgraded);
-
-        ItemStack book = player.getInventory().getItemInMainHand();
-        if (book.getAmount() <= 1) {
-            player.getInventory().setItemInMainHand(new ItemStack(org.bukkit.Material.AIR));
-        } else {
-            book.setAmount(book.getAmount() - 1);
-            player.getInventory().setItemInMainHand(book);
-        }
-
-        player.sendMessage("§aApplied " + titleEnchantment(enchantmentId)
-                + " " + rank + " to " + target.getType().name().toLowerCase().replace('_', ' ') + ".");
-        player.playSound(player.getLocation(), Sound.BLOCK_ENCHANTMENT_TABLE_USE, 0.7F, 1.35F);
-    }
-
-    private int safeMaximumCustomLevel(String enchantmentId) {
-        return switch (enchantmentId) {
-            case "sharpness", "smite", "bane_of_arthropods", "power" -> 14;
-            case "protection", "feather_falling" -> 10;
-            case "blast_protection", "fire_protection", "projectile_protection" -> 9;
-            case "efficiency" -> 12;
-            case "unbreaking" -> 10;
-            case "fortune", "looting", "respiration", "sweeping_edge" -> 8;
-            case "fire_aspect", "knockback" -> 6;
-            case "depth_strider", "thorns", "soul_speed", "swift_sneak" -> 7;
-            case "quick_charge" -> 7;
-            case "piercing" -> 8;
-            case "impaling" -> 10;
-            case "loyalty", "riptide" -> 7;
-            // Mending and unknown legacy ids have no useful high-level scaling.
-            default -> 1;
-        };
-    }
-
-    private boolean supportsTarget(String enchantmentId, ItemStack item) {
-        org.bukkit.Material type = item.getType();
-        boolean helmet = type.name().endsWith("_HELMET") || type == org.bukkit.Material.TURTLE_HELMET;
-        boolean boots = type.name().endsWith("_BOOTS");
-        boolean leggings = type.name().endsWith("_LEGGINGS");
-        boolean armour = helmet || boots || leggings || type.name().endsWith("_CHESTPLATE");
-        boolean sword = type.name().endsWith("_SWORD") || type.name().endsWith("_AXE");
-        boolean bow = type == org.bukkit.Material.BOW;
-        boolean crossbow = type == org.bukkit.Material.CROSSBOW;
-        boolean trident = type == org.bukkit.Material.TRIDENT;
-        boolean tool = type.name().endsWith("_PICKAXE") || type.name().endsWith("_AXE")
-                || type.name().endsWith("_SHOVEL") || type.name().endsWith("_HOE")
-                || type == org.bukkit.Material.SHEARS;
-
-        return switch (enchantmentId) {
-            case "respiration" -> helmet;
-            case "feather_falling", "depth_strider", "soul_speed" -> boots;
-            case "swift_sneak" -> leggings;
-            case "protection", "blast_protection", "fire_protection",
-                    "projectile_protection", "thorns" -> armour;
-            case "sharpness", "smite", "bane_of_arthropods",
-                    "sweeping_edge", "fire_aspect", "knockback", "looting" -> sword;
-            case "power", "flame", "infinity" -> bow;
-            case "quick_charge", "piercing", "multishot" -> crossbow;
-            case "fortune", "efficiency", "silk_touch" -> tool;
-            case "impaling", "loyalty", "riptide" -> trident;
-            case "unbreaking" -> item.getType().getMaxDurability() > 0;
-            default -> enchantmentId.equals("mending") && item.getType().getMaxDurability() > 0;
-        };
-    }
-
-    private boolean isCustomEnchantmentBook(ItemStack item) {
-        if (item == null || item.getType().isAir() || !item.hasItemMeta()) return false;
-        return item.getItemMeta().getPersistentDataContainer().has(
-                new NamespacedKey(plugin, "custom_enchantment_id"), PersistentDataType.STRING);
-    }
-
-    private boolean isLiquidGoldBucket(ItemStack item) {
-        if (item == null || item.getType().isAir() || !item.hasItemMeta()) return false;
-        return "liquid_gold".equals(item.getItemMeta().getPersistentDataContainer().get(
-                new NamespacedKey(plugin, "custom_fluid_id"), PersistentDataType.STRING));
-    }
-
-    private String titleEnchantment(String key) {
-        StringBuilder result = new StringBuilder();
-        for (String word : key.split("_")) {
-            if (result.length() > 0) result.append(' ');
-            result.append(Character.toUpperCase(word.charAt(0))).append(word.substring(1));
-        }
-        return result.toString();
-    }
-
-    private void suppressOffHandUse(Player player) {
-        UUID id = player.getUniqueId();
-        BukkitTask previous = offhandSuppressionTasks.remove(id);
-        if (previous != null) previous.cancel();
-        BukkitTask task = Bukkit.getScheduler().runTaskLater(plugin,
-                () -> offhandSuppressionTasks.remove(id), 2L);
-        offhandSuppressionTasks.put(id, task);
-    }
-
     private void freeze(Mob mob, Player player) {
         PersistentDataContainer data = mob.getPersistentDataContainer();
         data.set(originalAiKey, PersistentDataType.BYTE, bool(mob.hasAI()));
@@ -956,8 +755,6 @@ public final class MobChestListener implements Listener {
         freezeTasks.clear();
         for (BukkitTask task : poseTasks.values()) task.cancel();
         poseTasks.clear();
-        for (BukkitTask task : offhandSuppressionTasks.values()) task.cancel();
-        offhandSuppressionTasks.clear();
 
         for (UUID mobId : new ArrayList<>(activeMobs.keySet())) {
             Mob mob = activeMobs.get(mobId);
