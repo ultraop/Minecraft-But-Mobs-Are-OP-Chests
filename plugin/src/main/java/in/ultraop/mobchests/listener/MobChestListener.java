@@ -120,7 +120,7 @@ public final class MobChestListener implements Listener {
                 || LOOT_OPEN.equals(state) || CLOSING.equals(state);
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onMobRightClick(PlayerInteractEntityEvent event) {
         if (event.getHand() != org.bukkit.inventory.EquipmentSlot.HAND
                 || !(event.getRightClicked() instanceof Mob mob)
