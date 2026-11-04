@@ -461,7 +461,7 @@ public final class MobChestListener implements Listener {
         if (stored == null || stored.length == 0) return null;
         ItemStack[] contents = ItemStack.deserializeItemsFromBytes(stored);
         Inventory inventory = Bukkit.createInventory(
-                new MobChestInventoryHolder(mob.getUniqueId()), 27,
+                new MobChestInventoryHolder(mob.getUniqueId()), 54,
                 Component.text(mob.getType().name().replace('_', ' ') + " Mob Chest",
                         NamedTextColor.GOLD).decoration(TextDecoration.ITALIC, false));
         int count = Math.min(contents.length, inventory.getSize());
@@ -758,8 +758,8 @@ public final class MobChestListener implements Listener {
                 applyFrozenState(mob);
                 startFreezeEnforcer(mob);
             } else if (OPENING.equals(state) || LOOT_OPEN.equals(state) || CLOSING.equals(state)) {
-                // Interrupted chest sessions remain consumed. The last saved
-                // contents are kept on the entity and drop when it dies.
+                // Interrupted chest sessions return to the frozen, reusable state.
+                // Saved remaining contents are available on the next opening.
                 stopTask(poseTasks.remove(mob.getUniqueId()));
                 activeInventories.remove(mob.getUniqueId());
                 activeMobs.remove(mob.getUniqueId());
