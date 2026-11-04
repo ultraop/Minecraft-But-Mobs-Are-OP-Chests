@@ -30,12 +30,9 @@ import java.util.concurrent.ThreadLocalRandom;
  */
 public final class MobLootGenerator {
     private static final int SINGLE_CHEST_SIZE = 27;
-    private static final int DOUBLE_CHEST_SIZE = 54;
 
-    /** Passive/common mobs use a single chest; combat mobs and bosses use a double chest. */
-    public static int inventorySize(EntityType type) {
-        return tier(type) == MobTier.COMMON ? SINGLE_CHEST_SIZE : DOUBLE_CHEST_SIZE;
-    }
+    /** Every mob uses a compact single chest. */
+    public static int inventorySize(EntityType type) { return SINGLE_CHEST_SIZE; }
     private static final List<String> GENERIC_COMMON = List.of(
             "IRON_NUGGET", "COAL", "BREAD", "REDSTONE", "LAPIS_LAZULI", "COPPER_INGOT");
     private static final List<String> PASSIVE_COMMON = List.of(
