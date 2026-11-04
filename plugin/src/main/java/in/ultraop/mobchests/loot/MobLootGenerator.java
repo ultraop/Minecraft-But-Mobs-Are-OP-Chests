@@ -72,8 +72,14 @@ public final class MobLootGenerator {
         for (int slot = 0; slot < inventory.getSize(); slot++) slots.add(slot);
         Collections.shuffle(slots, random);
 
+        boolean trimAlreadyGenerated = false;
         for (int i = 0; i < stacks; i++) {
-            inventory.setItem(slots.get(i), reward(type, environment, rollRarity(type, plugin, random), plugin, random));
+            ItemStack generated = reward(type, environment, rollRarity(type, plugin, random),
+                    plugin, random, !trimAlreadyGenerated);
+            inventory.setItem(slots.get(i), generated);
+            if (generated.getType().name().endsWith("_ARMOR_TRIM_SMITHING_TEMPLATE")) {
+                trimAlreadyGenerated = true;
+            }
         }
 
         int nextSpecialSlot = stacks;
@@ -141,8 +147,8 @@ public final class MobLootGenerator {
 
     private static ItemStack reward(EntityType type, World.Environment environment, Rarity rarity,
                                     UltraOPMobChestsPlugin plugin,
-                                    ThreadLocalRandom random) {
-        if (tier(type) == MobTier.STRONG || tier(type) == MobTier.BOSS) return powerfulMobReward(type, random, rarity);
+                                    ThreadLocalRandom random, boolean allowTrim) {
+        if (tier(type) == MobTier.STRONG || tier(type) == MobTier.BOSS) return powerfulMobReward(type, random, rarity, allowTrim);
         return switch (rarity) {
             case COMMON -> createLootStack(randomMaterial(commonPool(type, environment)), random, 1, 4);
             case UNCOMMON -> createLootStack(randomMaterial(uncommonPool(type, environment)), random, 1, 2);
@@ -160,10 +166,10 @@ public final class MobLootGenerator {
      * Strong mobs and bosses provide useful progression materials in several
      * distinct stacks. Netherite and trim rewards remain deliberately scarce.
      */
-    private static ItemStack powerfulMobReward(EntityType type, ThreadLocalRandom random, Rarity rarity) {
+    private static ItemStack powerfulMobReward(EntityType type, ThreadLocalRandom random, Rarity rarity, boolean allowTrim) {
         boolean boss = tier(type) == MobTier.BOSS;
         int roll = random.nextInt(1000);
-        if (roll < (boss ? 3 : 1)) {
+        if (allowTrim && roll < (boss ? 3 : 1)) {
             return new ItemStack(randomMaterial(ARMOR_TRIM_ITEMS), 1);
         }
         if (roll < (boss ? 18 : 7)) {
