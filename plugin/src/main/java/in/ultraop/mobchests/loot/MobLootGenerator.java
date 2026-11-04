@@ -71,8 +71,14 @@ public final class MobLootGenerator {
             case STRONG -> chance(plugin, "loot.tier-equipment-chance.strong", 0.03);
             case BOSS -> chance(plugin, "loot.tier-equipment-chance.boss", 0.05);
         };
-        if (nextSpecialSlot < slots.size() && random.nextDouble() < gearChance) {
-            inventory.setItem(slots.get(nextSpecialSlot), tierEquipment(type, random));
+        // Special rewards use one of the four allowed item slots, never an extra fifth slot.
+        if (nextSpecialSlot < Math.min(4, slots.size())) {
+            if (type == EntityType.BAT
+                    && random.nextDouble() < chance(plugin, "loot.bat-elytra-chance", 0.02)) {
+                inventory.setItem(slots.get(nextSpecialSlot), new ItemStack(Material.ELYTRA, 1));
+            } else if (random.nextDouble() < gearChance) {
+                inventory.setItem(slots.get(nextSpecialSlot), tierEquipment(type, random));
+            }
         }
         return inventory;
     }
@@ -290,7 +296,7 @@ public final class MobLootGenerator {
                 : selected == Material.BOW ? new String[]{"power", "flame", "punch", "unbreaking"}
                 : selected == Material.CROSSBOW ? new String[]{"quick_charge", "piercing", "multishot", "unbreaking"}
                 : selected == Material.TRIDENT ? new String[]{"impaling", "loyalty", "riptide", "unbreaking"}
-                : new String[]{"sharpness", "smite", "fire_aspect", "looting", "unbreaking"};
+                : new String[]{"sharpness", "smite", "fire_aspect", "looting", "unbreaking", "mending"};
         int count = boss ? random.nextInt(2, 4) : strong ? random.nextInt(1, 3) : 1;
         int max = boss ? 8 : strong ? 5 : mid ? 3 : 2;
         for (int i = 0; i < count; i++) {
