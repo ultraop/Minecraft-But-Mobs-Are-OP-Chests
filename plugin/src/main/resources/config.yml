@@ -36,8 +36,8 @@ loot:
     boss: 0.35
   bat-elytra-chance: 0.02
   rare-op-item-chance:
-    strong: 0.004
-    boss: 0.012
+    strong: 0.10
+    boss: 0.35
 rarity:
   common: 80.0
   uncommon: 17.0
