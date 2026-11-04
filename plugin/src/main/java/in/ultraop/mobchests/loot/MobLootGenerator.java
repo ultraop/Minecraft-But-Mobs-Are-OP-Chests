@@ -88,9 +88,19 @@ public final class MobLootGenerator {
                 && random.nextDouble() < chance(plugin, "loot.bat-elytra-chance", 0.02)) {
             inventory.setItem(slots.get(0), new ItemStack(Material.ELYTRA, 1));
         } else if (random.nextDouble() < gearChance) {
-            // Special gear occupies one of the four allowed item slots, replacing a normal item if full.
-            int gearSlot = nextSpecialSlot < 4 ? nextSpecialSlot : random.nextInt(4);
+            // Special gear replaces a normal item in a shuffled slot.
+            int gearSlot = nextSpecialSlot < 4 ? nextSpecialSlot : random.nextInt(Math.min(stacks, 4));
             inventory.setItem(slots.get(gearSlot), tierEquipment(type, random));
+        }
+
+        // Extraordinary OP gear is a separate, very rare reward for powerful mobs only.
+        double opChance = switch (tier(type)) {
+            case COMMON, MID -> 0.0;
+            case STRONG -> chance(plugin, "loot.rare-op-item-chance.strong", 0.004);
+            case BOSS -> chance(plugin, "loot.rare-op-item-chance.boss", 0.012);
+        };
+        if (random.nextDouble() < opChance) {
+            inventory.setItem(slots.get(random.nextInt(Math.min(stacks, 4))), extraordinaryOpItem(random));
         }
         return inventory;
     }
@@ -330,6 +340,47 @@ public final class MobLootGenerator {
                 "GUARDIAN", "PIGLIN", "BREEZE", "SLIME", "MAGMA_CUBE", "VEX",
                 "SILVERFISH", "ENDERMITE").contains(name)) return MobTier.MID;
         return MobTier.COMMON;
+    }
+
+    private static ItemStack extraordinaryOpItem(ThreadLocalRandom random) {
+        int level = random.nextInt(15, 19);
+        switch (random.nextInt(4)) {
+            case 0:
+            case 1: {
+                ItemStack sword = new ItemStack(random.nextBoolean() ? Material.NETHERITE_SWORD : Material.DIAMOND_SWORD);
+                ItemMeta meta = sword.getItemMeta();
+                Enchantment sharpness = Registry.ENCHANTMENT.get(NamespacedKey.minecraft("sharpness"));
+                Enchantment looting = Registry.ENCHANTMENT.get(NamespacedKey.minecraft("looting"));
+                if (sharpness != null) meta.addEnchant(sharpness, level, true);
+                if (looting != null) meta.addEnchant(looting, random.nextInt(5, 9), true);
+                meta.displayName(Component.text("Ultra OP Sword", NamedTextColor.LIGHT_PURPLE)
+                        .decoration(TextDecoration.ITALIC, TextDecoration.State.FALSE));
+                sword.setItemMeta(meta);
+                return sword;
+            }
+            case 2: {
+                ItemStack bow = new ItemStack(Material.BOW);
+                ItemMeta meta = bow.getItemMeta();
+                Enchantment power = Registry.ENCHANTMENT.get(NamespacedKey.minecraft("power"));
+                if (power != null) meta.addEnchant(power, level, true);
+                meta.displayName(Component.text("Ultra OP Bow", NamedTextColor.LIGHT_PURPLE)
+                        .decoration(TextDecoration.ITALIC, TextDecoration.State.FALSE));
+                bow.setItemMeta(meta);
+                return bow;
+            }
+            default: {
+                ItemStack crossbow = new ItemStack(Material.CROSSBOW);
+                ItemMeta meta = crossbow.getItemMeta();
+                Enchantment quick = Registry.ENCHANTMENT.get(NamespacedKey.minecraft("quick_charge"));
+                Enchantment piercing = Registry.ENCHANTMENT.get(NamespacedKey.minecraft("piercing"));
+                if (quick != null) meta.addEnchant(quick, level, true);
+                if (piercing != null) meta.addEnchant(piercing, level, true);
+                meta.displayName(Component.text("Ultra OP Crossbow", NamedTextColor.LIGHT_PURPLE)
+                        .decoration(TextDecoration.ITALIC, TextDecoration.State.FALSE));
+                crossbow.setItemMeta(meta);
+                return crossbow;
+            }
+        }
     }
 
     private static ItemStack tierEquipment(EntityType type, ThreadLocalRandom random) {
