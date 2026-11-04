@@ -53,7 +53,7 @@ import java.util.concurrent.ThreadLocalRandom;
  * directly, preventing look goals from fighting the opening pose. Some mob
  * renderers may still interpret pitch differently; no model or scale is replaced.
  *
- * State: NORMAL -> FROZEN -> OPENING -> LOOT_OPEN -> CLOSING -> LOOTED.
+ * State: NORMAL -> FROZEN <-> OPENING -> LOOT_OPEN -> CLOSING. Mob chests remain reusable until the mob dies.
  * Loot contents are saved on the mob itself and become its death drops after
  * the chest has been used. Vanilla item drops are replaced while normal XP remains.
  */
@@ -139,7 +139,7 @@ public final class MobChestListener implements Listener {
             event.setCancelled(true);
             event.getPlayer().sendActionBar("This mob chest is already opening.");
         }
-        // LOOTED mobs use their normal vanilla interaction again.
+        // Reusable mob chests return to FROZEN after each close.
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
@@ -276,10 +276,13 @@ public final class MobChestListener implements Listener {
 
         Inventory inventory;
         try {
-            inventory = MobLootGenerator.create(id, mob.getType(),
-                    mob.getWorld().getEnvironment(), plugin);
+            inventory = loadSavedInventory(mob);
+            if (inventory == null) {
+                inventory = MobLootGenerator.create(id, mob.getType(),
+                        mob.getWorld().getEnvironment(), plugin);
+            }
         } catch (RuntimeException exception) {
-            plugin.getLogger().severe("Could not generate mob chest loot for " + id + ": " + exception.getMessage());
+            plugin.getLogger().severe("Could not prepare mob chest loot for " + id + ": " + exception.getMessage());
             recoverToFrozen(mob);
             player.sendMessage("§cThe chest could not prepare its loot. The mob remains frozen.");
             return;
@@ -306,11 +309,12 @@ public final class MobChestListener implements Listener {
                     if (!mob.isValid() || mob.isDead()) return;
                     if (!player.isOnline()) {
                         persistInventory(mob, inventory);
-                        setState(mob, LOOTED);
+                        setState(mob, FROZEN);
                         activeMobs.remove(id);
                         activeInventories.remove(id);
                         openers.remove(id);
-                        restoreNormalState(mob);
+                        applyFrozenState(mob);
+                        startFreezeEnforcer(mob);
                         return;
                     }
 
@@ -320,7 +324,7 @@ public final class MobChestListener implements Listener {
                     persistInventory(mob, inventory);
                     try {
                         player.openInventory(inventory);
-                        player.sendActionBar("Take what you need. Closing this inventory uses the chest permanently.");
+                        player.sendActionBar("Take what you need. Close the inventory and right-click the mob again to reopen this chest.");
                     } catch (RuntimeException exception) {
                         plugin.getLogger().severe("Could not open mob chest GUI for " + id + ": " + exception.getMessage());
                         persistInventory(mob, inventory);
@@ -350,8 +354,9 @@ public final class MobChestListener implements Listener {
                 activeInventories.remove(id);
                 activeMobs.remove(id);
                 openers.remove(id);
-                setState(mob, LOOTED);
-                restoreNormalState(mob);
+                setState(mob, FROZEN);
+                applyFrozenState(mob);
+                startFreezeEnforcer(mob);
                 return;
             }
 
@@ -451,6 +456,24 @@ public final class MobChestListener implements Listener {
         mob.getWorld().spawnParticle(Particle.END_ROD, origin, 16, 0.40, 0.38, 0.40, 0.12);
     }
 
+    private Inventory loadSavedInventory(Mob mob) {
+        byte[] stored = mob.getPersistentDataContainer().get(chestLootKey, PersistentDataType.BYTE_ARRAY);
+        if (stored == null || stored.length == 0) return null;
+        ItemStack[] contents = ItemStack.deserializeItemsFromBytes(stored);
+        Inventory inventory = Bukkit.createInventory(
+                new MobChestInventoryHolder(mob.getUniqueId()), 27,
+                Component.text(mob.getType().name().replace('_', ' ') + " Mob Chest",
+                        NamedTextColor.GOLD).decoration(TextDecoration.ITALIC, false));
+        int count = Math.min(contents.length, inventory.getSize());
+        for (int i = 0; i < count; i++) {
+            ItemStack stack = contents[i];
+            if (stack != null && !stack.getType().isAir() && stack.getAmount() > 0) {
+                inventory.setItem(i, stack);
+            }
+        }
+        return inventory;
+    }
+
     private void persistInventory(Mob mob, Inventory inventory) {
         if (mob == null || !mob.isValid() || inventory == null) return;
         byte[] contents = ItemStack.serializeItemsAsBytes(inventory.getContents());
@@ -524,14 +547,16 @@ public final class MobChestListener implements Listener {
                     plugin.settings().closeAnimationTicks(), CLOSING, () -> {
                         activeInventories.remove(mobId);
                         activeMobs.remove(mobId);
-                        setState(mob, LOOTED);
-                        restoreNormalState(mob);
+                        setState(mob, FROZEN);
+                        applyFrozenState(mob);
+                        startFreezeEnforcer(mob);
                     });
         } else {
             activeInventories.remove(mobId);
             activeMobs.remove(mobId);
-            setState(mob, LOOTED);
-            restoreNormalState(mob);
+            setState(mob, FROZEN);
+            applyFrozenState(mob);
+            startFreezeEnforcer(mob);
         }
     }
 
@@ -695,8 +720,9 @@ public final class MobChestListener implements Listener {
                 activeInventories.remove(id);
                 activeMobs.remove(id);
                 openers.remove(id);
-                setState(mob, LOOTED);
-                restoreNormalState(mob);
+                setState(mob, FROZEN);
+                applyFrozenState(mob);
+                startFreezeEnforcer(mob);
             }
         }
     }
@@ -738,8 +764,9 @@ public final class MobChestListener implements Listener {
                 activeInventories.remove(mob.getUniqueId());
                 activeMobs.remove(mob.getUniqueId());
                 openers.remove(mob.getUniqueId());
-                setState(mob, LOOTED);
-                restoreNormalState(mob);
+                setState(mob, FROZEN);
+                applyFrozenState(mob);
+                startFreezeEnforcer(mob);
             } else if (LOOTED.equals(state) && mob.isInvisible()) {
                 // Compatibility recovery for entities opened by older builds.
                 restoreNormalState(mob);
@@ -779,13 +806,14 @@ public final class MobChestListener implements Listener {
                 activeInventories.remove(mobId);
                 activeMobs.remove(mobId);
                 openers.remove(mobId);
-                setState(mob, LOOTED);
-                restoreNormalState(mob);
+                setState(mob, FROZEN);
+                applyFrozenState(mob);
+                startFreezeEnforcer(mob);
             }
         }
         activeInventories.clear();
         activeMobs.clear();
         openers.clear();
-        // Frozen mobs remain frozen in PDC and resume on the next plugin enable.
+        // Opened mob chests return to the reusable FROZEN state and resume on the next plugin enable.
     }
 }
