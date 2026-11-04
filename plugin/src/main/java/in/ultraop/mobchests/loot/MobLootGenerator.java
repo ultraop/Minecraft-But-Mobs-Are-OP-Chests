@@ -333,7 +333,7 @@ public final class MobLootGenerator {
     private static MobTier tier(EntityType type) {
         String name = type.name();
         if (isBoss(type) || name.equals("WARDEN")) return MobTier.BOSS;
-        if (List.of("RAVAGER", "EVOKER", "VINDICATOR", "PIGLIN_BRUTE", "BLAZE",
+        if (List.of("RAVAGER", "EVOKER", "VINDICATOR", "PIGLIN_BRUTE", "IRON_GOLEM", "BLAZE",
                 "GHAST", "SHULKER", "HOGLIN", "ZOGLIN").contains(name)) return MobTier.STRONG;
         if (List.of("ZOMBIE", "HUSK", "DROWNED", "SKELETON", "STRAY", "CREEPER",
                 "SPIDER", "CAVE_SPIDER", "ENDERMAN", "WITCH", "PHANTOM", "PILLAGER",
@@ -387,7 +387,7 @@ public final class MobLootGenerator {
         String name = type.name();
         boolean boss = isBoss(type) || name.equals("WARDEN");
         boolean strong = boss || List.of("RAVAGER", "EVOKER", "VINDICATOR", "PIGLIN_BRUTE",
-                "BLAZE", "GHAST", "SHULKER", "HOGLIN", "ZOGLIN").contains(name);
+                "IRON_GOLEM", "BLAZE", "GHAST", "SHULKER", "HOGLIN", "ZOGLIN").contains(name);
         boolean mid = strong || List.of("ZOMBIE", "HUSK", "DROWNED", "SKELETON", "STRAY",
                 "CREEPER", "SPIDER", "CAVE_SPIDER", "ENDERMAN", "WITCH", "PHANTOM",
                 "PILLAGER", "GUARDIAN", "PIGLIN", "BREEZE", "SLIME", "MAGMA_CUBE").contains(name);
