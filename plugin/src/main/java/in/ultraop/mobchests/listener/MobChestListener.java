@@ -496,8 +496,6 @@ public final class MobChestListener implements Listener {
         persistOpenInventory(top);
 
         UUID playerId = event.getPlayer().getUniqueId();
-        BukkitTask suppression = offhandSuppressionTasks.remove(playerId);
-        if (suppression != null) suppression.cancel();
         UUID mobId = openers.entrySet().stream()
                 .filter(entry -> entry.getValue().equals(playerId))
                 .map(Map.Entry::getKey)
