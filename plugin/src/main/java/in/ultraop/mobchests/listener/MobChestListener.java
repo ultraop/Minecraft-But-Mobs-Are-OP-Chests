@@ -404,9 +404,11 @@ public final class MobChestListener implements Listener {
         byte[] stored = mob.getPersistentDataContainer().get(chestLootKey, PersistentDataType.BYTE_ARRAY);
         if (stored == null || stored.length == 0) return null;
         ItemStack[] contents = ItemStack.deserializeItemsFromBytes(stored);
+        // Preserve legacy double-chest contents for mobs opened by an older build.
+        int savedSize = Math.max(MobLootGenerator.inventorySize(mob.getType()), contents.length);
+        int chestSize = Math.min(54, Math.max(9, ((savedSize + 8) / 9) * 9));
         Inventory inventory = Bukkit.createInventory(
-                new MobChestInventoryHolder(mob.getUniqueId()),
-                MobLootGenerator.inventorySize(mob.getType()),
+                new MobChestInventoryHolder(mob.getUniqueId()), chestSize,
                 Component.text(mob.getType().name().replace('_', ' ') + " Mob Chest",
                         NamedTextColor.GOLD).decoration(TextDecoration.ITALIC, false));
         int count = Math.min(contents.length, inventory.getSize());
