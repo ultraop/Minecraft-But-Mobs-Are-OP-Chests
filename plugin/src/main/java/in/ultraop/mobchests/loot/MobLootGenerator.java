@@ -53,8 +53,8 @@ public final class MobLootGenerator {
                 Component.text(displayName(type.name()) + " Treasure", NamedTextColor.GOLD));
         holder.bind(inventory);
 
-        int minStacks = clamp(plugin.getConfig().getInt("loot.minimum-item-stacks", 14), 1, 36);
-        int maxStacks = clamp(plugin.getConfig().getInt("loot.maximum-item-stacks", 18), minStacks, 36);
+        int minStacks = clamp(plugin.getConfig().getInt("loot.minimum-item-stacks", 0), 0, 4);
+        int maxStacks = clamp(plugin.getConfig().getInt("loot.maximum-item-stacks", 4), minStacks, 4);
         int stacks = random.nextInt(minStacks, maxStacks + 1);
         List<Integer> slots = new ArrayList<>();
         for (int slot = 0; slot < inventory.getSize(); slot++) slots.add(slot);
@@ -66,10 +66,10 @@ public final class MobLootGenerator {
 
         int nextSpecialSlot = stacks;
         double gearChance = switch (tier(type)) {
-            case COMMON -> chance(plugin, "loot.tier-equipment-chance.common", 0.06);
-            case MID -> chance(plugin, "loot.tier-equipment-chance.mid", 0.22);
-            case STRONG -> chance(plugin, "loot.tier-equipment-chance.strong", 0.38);
-            case BOSS -> chance(plugin, "loot.tier-equipment-chance.boss", 0.55);
+            case COMMON -> chance(plugin, "loot.tier-equipment-chance.common", 0.01);
+            case MID -> chance(plugin, "loot.tier-equipment-chance.mid", 0.01);
+            case STRONG -> chance(plugin, "loot.tier-equipment-chance.strong", 0.03);
+            case BOSS -> chance(plugin, "loot.tier-equipment-chance.boss", 0.05);
         };
         if (nextSpecialSlot < slots.size() && random.nextDouble() < gearChance) {
             inventory.setItem(slots.get(nextSpecialSlot), tierEquipment(type, random));
@@ -79,12 +79,12 @@ public final class MobLootGenerator {
 
     private static Rarity rollRarity(EntityType type, UltraOPMobChestsPlugin plugin,
                                      ThreadLocalRandom random) {
-        double common = weight(plugin, "common", 70.0);
-        double uncommon = weight(plugin, "uncommon", 20.0);
-        double rare = weight(plugin, "rare", 7.0);
-        double epic = weight(plugin, "epic", 2.0);
-        double legendary = weight(plugin, "legendary", 0.8);
-        double mythic = weight(plugin, "mythic", 0.2);
+        double common = weight(plugin, "common", 80.0);
+        double uncommon = weight(plugin, "uncommon", 17.0);
+        double rare = weight(plugin, "rare", 2.5);
+        double epic = weight(plugin, "epic", 0.4);
+        double legendary = weight(plugin, "legendary", 0.09);
+        double mythic = weight(plugin, "mythic", 0.01);
         double total = common + uncommon + rare + epic + legendary + mythic;
         if (total <= 0.0) return Rarity.COMMON;
 
@@ -115,23 +115,15 @@ public final class MobLootGenerator {
                                     UltraOPMobChestsPlugin plugin,
                                     ThreadLocalRandom random) {
         return switch (rarity) {
-            case COMMON -> createLootStack(randomMaterial(commonPool(type, environment)), random, 1, 8);
-            case UNCOMMON -> random.nextDouble() < 0.12
-                    ? vanillaEnchantedBook(random)
-                    : createLootStack(randomMaterial(uncommonPool(type, environment)), random, 1, 5);
-            case RARE -> random.nextDouble() < 0.05
+            case COMMON -> createLootStack(randomMaterial(commonPool(type, environment)), random, 1, 4);
+            case UNCOMMON -> createLootStack(randomMaterial(uncommonPool(type, environment)), random, 1, 2);
+            case RARE -> random.nextDouble() < 0.02
                     ? new ItemStack(randomMaterial(ARMOR_TRIM_ITEMS), 1)
-                    : random.nextDouble() < 0.42
-                    ? createLootStack(randomMaterial(dimensionRarePool(environment)), random, 1, 2)
-                    : random.nextBoolean()
-                    ? enchantedGear(random)
-                    : createLootStack(randomMaterial(List.of("DIAMOND", "GOLDEN_APPLE", "ENDER_EYE",
-                    "AMETHYST_SHARD", "EXPERIENCE_BOTTLE", "POTION", "SPLASH_POTION")), random, 1, 2);
-            case EPIC -> random.nextBoolean() ? tierEquipment(type, random) : vanillaEnchantedBook(random);
-            case LEGENDARY, MYTHIC -> random.nextBoolean()
-                    ? tierEquipment(type, random)
-                    : createLootStack(randomMaterial(List.of("NETHERITE_INGOT", "ENCHANTED_GOLDEN_APPLE",
-                    "TOTEM_OF_UNDYING", "ELYTRA", "TRIDENT", "NETHER_STAR")), random, 1, 1);
+                    : createLootStack(randomMaterial(List.of("DIAMOND", "EMERALD", "GOLDEN_APPLE",
+                    "ENDER_EYE", "AMETHYST_SHARD", "EXPERIENCE_BOTTLE")), random, 1, 1);
+            case EPIC -> vanillaEnchantedBook(random);
+            case LEGENDARY, MYTHIC -> createLootStack(randomMaterial(List.of(
+                    "DIAMOND", "EMERALD", "GOLDEN_APPLE", "TOTEM_OF_UNDYING")), random, 1, 1);
         };
     }
 
@@ -239,7 +231,7 @@ public final class MobLootGenerator {
                     "NETHERITE_INGOT", "GOLD_BLOCK", "MAGMA_CREAM");
             case THE_END -> List.of(
                     "SHULKER_SHELL", "DRAGON_BREATH", "CHORUS_FRUIT",
-                    "ENDER_EYE", "ELYTRA", "END_CRYSTAL");
+                    "ENDER_EYE", "END_CRYSTAL");
             default -> List.of(
                     "DIAMOND", "EMERALD", "GOLDEN_APPLE", "ENDER_EYE");
         };
