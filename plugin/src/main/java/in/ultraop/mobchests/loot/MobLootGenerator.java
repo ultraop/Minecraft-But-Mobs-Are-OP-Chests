@@ -3,12 +3,10 @@ package in.ultraop.mobchests.loot;
 import in.ultraop.mobchests.UltraOPMobChestsPlugin;
 import in.ultraop.mobchests.inventory.MobChestInventoryHolder;
 import in.ultraop.mobchests.fluid.LiquidGoldService;
-import in.ultraop.mobchests.items.CustomItemFactory;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
-import org.bukkit.Color;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Registry;
@@ -18,11 +16,9 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.EnchantmentStorageMeta;
-import org.bukkit.inventory.meta.LeatherArmorMeta;
 import org.bukkit.inventory.meta.PotionMeta;
 import org.bukkit.potion.PotionType;
 import org.bukkit.World;
-import org.bukkit.persistence.PersistentDataType;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -69,22 +65,15 @@ public final class MobLootGenerator {
             inventory.setItem(slots.get(i), reward(type, environment, rollRarity(type, plugin, random), plugin, random));
         }
 
-        // Special rewards occupy fresh slots; they never overwrite another reward.
         int nextSpecialSlot = stacks;
-        double liquidGoldChance = chance(plugin, "loot.liquid-gold-chance", 0.08);
-        if (stacks > 0 && nextSpecialSlot < slots.size() && random.nextDouble() < liquidGoldChance) {
-            inventory.setItem(slots.get(nextSpecialSlot++), liquidGoldBucket(plugin));
-        }
-
-        double goldenFoodChance = chance(plugin, "loot.golden-food-chance", 0.06);
-        if (stacks > 0 && nextSpecialSlot < slots.size() && random.nextDouble() < goldenFoodChance) {
-            inventory.setItem(slots.get(nextSpecialSlot++), goldenFood(plugin, random));
-        }
-
-        // At most one custom equipment piece per chest, never a full set.
-        double gearChance = chance(plugin, "loot.custom-equipment-chance", 0.10);
-        if (stacks > 0 && nextSpecialSlot < slots.size() && random.nextDouble() < gearChance) {
-            inventory.setItem(slots.get(nextSpecialSlot), customEquipment(plugin, random, environment));
+        double gearChance = switch (tier(type)) {
+            case COMMON -> chance(plugin, "loot.tier-equipment-chance.common", 0.06);
+            case MID -> chance(plugin, "loot.tier-equipment-chance.mid", 0.22);
+            case STRONG -> chance(plugin, "loot.tier-equipment-chance.strong", 0.38);
+            case BOSS -> chance(plugin, "loot.tier-equipment-chance.boss", 0.55);
+        };
+        if (nextSpecialSlot < slots.size() && random.nextDouble() < gearChance) {
+            inventory.setItem(slots.get(nextSpecialSlot), tierEquipment(type, random));
         }
         return inventory;
     }
@@ -139,10 +128,11 @@ public final class MobLootGenerator {
                     ? enchantedGear(random)
                     : createLootStack(randomMaterial(List.of("DIAMOND", "GOLDEN_APPLE", "ENDER_EYE",
                     "AMETHYST_SHARD", "EXPERIENCE_BOTTLE", "POTION", "SPLASH_POTION")), random, 1, 2);
-            case EPIC -> random.nextBoolean()
-                    ? customEnchantmentTome(plugin, random)
-                    : artifact(plugin, random);
-            case LEGENDARY, MYTHIC -> artifact(plugin, random);
+            case EPIC -> random.nextBoolean() ? tierEquipment(type, random) : vanillaEnchantedBook(random);
+            case LEGENDARY, MYTHIC -> random.nextBoolean()
+                    ? tierEquipment(type, random)
+                    : createLootStack(randomMaterial(List.of("NETHERITE_INGOT", "ENCHANTED_GOLDEN_APPLE",
+                    "TOTEM_OF_UNDYING", "ELYTRA", "TRIDENT", "NETHER_STAR")), random, 1, 1);
         };
     }
 
@@ -270,6 +260,44 @@ public final class MobLootGenerator {
         };
     }
 
+    private static ItemStack tierEquipment(EntityType type, ThreadLocalRandom random) {
+        String name = type.name();
+        boolean boss = isBoss(type) || name.equals("WARDEN");
+        boolean strong = boss || List.of("RAVAGER", "EVOKER", "VINDICATOR", "PIGLIN_BRUTE",
+                "BLAZE", "GHAST", "SHULKER", "HOGLIN", "ZOGLIN").contains(name);
+        boolean mid = strong || List.of("ZOMBIE", "HUSK", "DROWNED", "SKELETON", "STRAY",
+                "CREEPER", "SPIDER", "CAVE_SPIDER", "ENDERMAN", "WITCH", "PHANTOM",
+                "PILLAGER", "GUARDIAN", "PIGLIN", "BREEZE", "SLIME", "MAGMA_CUBE").contains(name);
+        Material[] common = {Material.IRON_HELMET, Material.IRON_CHESTPLATE, Material.IRON_LEGGINGS,
+                Material.IRON_BOOTS, Material.GOLDEN_HELMET, Material.GOLDEN_CHESTPLATE,
+                Material.GOLDEN_LEGGINGS, Material.GOLDEN_BOOTS, Material.IRON_SWORD, Material.GOLDEN_SWORD};
+        Material[] diamond = {Material.DIAMOND_HELMET, Material.DIAMOND_CHESTPLATE,
+                Material.DIAMOND_LEGGINGS, Material.DIAMOND_BOOTS, Material.DIAMOND_SWORD,
+                Material.DIAMOND_AXE, Material.BOW, Material.CROSSBOW};
+        Material[] netherite = {Material.NETHERITE_HELMET, Material.NETHERITE_CHESTPLATE,
+                Material.NETHERITE_LEGGINGS, Material.NETHERITE_BOOTS, Material.NETHERITE_SWORD,
+                Material.NETHERITE_AXE, Material.TRIDENT, Material.CROSSBOW};
+        Material selected = boss ? netherite[random.nextInt(netherite.length)]
+                : mid ? diamond[random.nextInt(diamond.length)] : common[random.nextInt(common.length)];
+        ItemStack item = new ItemStack(selected);
+        ItemMeta meta = item.getItemMeta();
+        String[] keys = selected.name().endsWith("_HELMET") || selected.name().endsWith("_CHESTPLATE")
+                || selected.name().endsWith("_LEGGINGS") || selected.name().endsWith("_BOOTS")
+                ? new String[]{"protection", "unbreaking", "thorns", "feather_falling"}
+                : selected == Material.BOW ? new String[]{"power", "flame", "punch", "unbreaking"}
+                : selected == Material.CROSSBOW ? new String[]{"quick_charge", "piercing", "multishot", "unbreaking"}
+                : selected == Material.TRIDENT ? new String[]{"impaling", "loyalty", "riptide", "unbreaking"}
+                : new String[]{"sharpness", "smite", "fire_aspect", "looting", "unbreaking"};
+        int count = boss ? random.nextInt(2, 4) : strong ? random.nextInt(1, 3) : 1;
+        int max = boss ? 8 : strong ? 5 : mid ? 3 : 2;
+        for (int i = 0; i < count; i++) {
+            Enchantment enchantment = Registry.ENCHANTMENT.get(NamespacedKey.minecraft(keys[random.nextInt(keys.length)]));
+            if (enchantment != null) meta.addEnchant(enchantment, random.nextInt(1, max + 1), true);
+        }
+        item.setItemMeta(meta);
+        return item;
+    }
+
     private static ItemStack enchantedGear(ThreadLocalRandom random) {
         Material[] choices = {Material.DIAMOND_SWORD, Material.BOW, Material.IRON_CHESTPLATE,
                 Material.DIAMOND_PICKAXE, Material.CROSSBOW};
@@ -289,86 +317,14 @@ public final class MobLootGenerator {
         return item;
     }
 
-    private record EnchantmentRange(String id, int minimum, int maximum) { }
 
-    private static final List<EnchantmentRange> CUSTOM_ENCHANTMENTS = List.of(
-            new EnchantmentRange("sharpness", 10, 14),
-            new EnchantmentRange("smite", 10, 14),
-            new EnchantmentRange("bane_of_arthropods", 10, 14),
-            new EnchantmentRange("power", 10, 14),
-            new EnchantmentRange("protection", 8, 10),
-            new EnchantmentRange("blast_protection", 7, 9),
-            new EnchantmentRange("fire_protection", 7, 9),
-            new EnchantmentRange("projectile_protection", 7, 9),
-            new EnchantmentRange("efficiency", 10, 12),
-            new EnchantmentRange("unbreaking", 8, 10),
-            new EnchantmentRange("fortune", 6, 8),
-            new EnchantmentRange("looting", 6, 8),
-            new EnchantmentRange("feather_falling", 8, 10),
-            new EnchantmentRange("respiration", 6, 8),
-            new EnchantmentRange("sweeping_edge", 6, 8),
-            new EnchantmentRange("fire_aspect", 4, 6),
-            new EnchantmentRange("knockback", 4, 6),
-            new EnchantmentRange("depth_strider", 6, 7),
-            new EnchantmentRange("thorns", 6, 7),
-            new EnchantmentRange("soul_speed", 6, 7),
-            new EnchantmentRange("swift_sneak", 6, 7),
-            new EnchantmentRange("quick_charge", 5, 7),
-            new EnchantmentRange("piercing", 6, 8),
-            new EnchantmentRange("impaling", 8, 10),
-            new EnchantmentRange("loyalty", 5, 7),
-            new EnchantmentRange("riptide", 5, 7)
-    );
+
 
     /**
      * This is a plugin-applied enchanted book, not a vanilla anvil book.
      * Keeping the high level in PDC rather than EnchantmentStorageMeta avoids
      * Minecraft's untranslated enchantment.level.N tooltip for levels > max.
      */
-    private static ItemStack customEnchantmentTome(UltraOPMobChestsPlugin plugin,
-                                                   ThreadLocalRandom random) {
-        EnchantmentRange selected = CUSTOM_ENCHANTMENTS.get(random.nextInt(CUSTOM_ENCHANTMENTS.size()));
-        Enchantment enchantment = Registry.ENCHANTMENT.get(NamespacedKey.minecraft(selected.id()));
-        if (enchantment == null) {
-            selected = new EnchantmentRange("sharpness", 8, 10);
-            enchantment = Registry.ENCHANTMENT.get(NamespacedKey.minecraft(selected.id()));
-        }
-
-        int rank = random.nextInt(selected.minimum(), selected.maximum() + 1);
-        ItemStack tome = new ItemStack(Material.ENCHANTED_BOOK);
-        ItemMeta meta = tome.getItemMeta();
-        meta.displayName(itemTitle("Ancient Enchanted Book", NamedTextColor.LIGHT_PURPLE));
-        meta.lore(List.of(
-                itemLore("Enchantment: " + title(selected.id()), NamedTextColor.GOLD),
-                itemLore("Level: " + rank, NamedTextColor.AQUA),
-                itemLore("Compatible gear: " + compatibleGearLabel(selected.id()), NamedTextColor.GRAY),
-                itemLore("Place gear in off-hand; hold this book and right-click.", NamedTextColor.GRAY)));
-        meta.getPersistentDataContainer().set(new NamespacedKey(plugin, "custom_enchantment_rank"),
-                PersistentDataType.INTEGER, rank);
-        meta.getPersistentDataContainer().set(new NamespacedKey(plugin, "custom_enchantment_id"),
-                PersistentDataType.STRING, selected.id());
-        tome.setItemMeta(meta);
-        return tome;
-    }
-
-    private static String compatibleGearLabel(String enchantmentId) {
-        return switch (enchantmentId) {
-            case "respiration" -> "Helmet";
-            case "feather_falling", "depth_strider", "soul_speed" -> "Boots";
-            case "swift_sneak" -> "Leggings";
-            case "protection", "blast_protection", "fire_protection",
-                    "projectile_protection", "thorns" -> "Any armour";
-            case "sharpness", "smite", "bane_of_arthropods", "sweeping_edge",
-                    "fire_aspect", "knockback", "looting" -> "Sword (some also work on axes)";
-            case "power" -> "Bow";
-            case "efficiency", "fortune" -> "Pickaxe, axe, shovel or hoe";
-            case "unbreaking" -> "Any durable item";
-            case "quick_charge", "piercing" -> "Crossbow";
-            case "impaling", "loyalty", "riptide" -> "Trident";
-            default -> "Compatible tool or armour";
-        };
-    }
-
     private static ItemStack vanillaEnchantedBook(ThreadLocalRandom random) {
         String[] keys = {"sharpness", "protection", "efficiency", "unbreaking", "fortune",
                 "looting", "feather_falling", "respiration", "power", "flame", "mending",
@@ -412,75 +368,6 @@ public final class MobLootGenerator {
         return potion;
     }
 
-
-    private static ItemStack customEquipment(UltraOPMobChestsPlugin plugin,
-                                             ThreadLocalRandom random,
-                                             World.Environment environment) {
-        String[] ids = {"skybound_boots", "aetherguard_chestplate", "phantom_leggings",
-                "stormcaller_bow", "infernal_edge", "voidwalker_helmet",
-                "emerald_helmet", "emerald_chestplate", "emerald_leggings", "emerald_boots"};
-        // Infernal Edge gets a Netherite base only inside the Nether.
-        Material infernalEdgeMaterial = environment == World.Environment.NETHER
-                ? Material.NETHERITE_SWORD : Material.DIAMOND_SWORD;
-        Material[] materials = {Material.DIAMOND_BOOTS, Material.DIAMOND_CHESTPLATE,
-                Material.DIAMOND_LEGGINGS, Material.BOW, infernalEdgeMaterial,
-                Material.DIAMOND_HELMET, Material.LEATHER_HELMET, Material.LEATHER_CHESTPLATE,
-                Material.LEATHER_LEGGINGS, Material.LEATHER_BOOTS};
-        int index = random.nextInt(ids.length);
-        ItemStack item = taggedArtifact(plugin, ids[index], title(ids[index]), materials[index]);
-        ItemMeta meta = item.getItemMeta();
-        if (meta instanceof LeatherArmorMeta leather) {
-            leather.setColor(Color.fromRGB(47, 190, 91));
-            leather.displayName(itemTitle(title(ids[index]), NamedTextColor.GREEN));
-            item.setItemMeta(leather);
-        }
-        return item;
-    }
-
-    private static ItemStack goldenFood(UltraOPMobChestsPlugin plugin, ThreadLocalRandom random) {
-        return CustomItemFactory.createRandomFood(plugin, random);
-    }
-
-    private static ItemStack liquidGoldBucket(UltraOPMobChestsPlugin plugin) {
-        return LiquidGoldService.createBucket(plugin);
-    }
-
-    private static ItemStack artifact(UltraOPMobChestsPlugin plugin,
-                                      ThreadLocalRandom random) {
-        String[] ids = {"skull_scepter", "abyssal_heart", "warden_echo_relic",
-                "dragon_wing_plate", "dragon_blast"};
-        String[] names = {"Skull Scepter", "Abyssal Heart", "Warden Echo Relic",
-                "Dragon Wing Plate", "Dragon Blast"};
-        Material[] materials = {Material.BLAZE_ROD, Material.HEART_OF_THE_SEA,
-                Material.ECHO_SHARD, Material.ELYTRA, Material.FIRE_CHARGE};
-        int index = random.nextInt(ids.length);
-        ItemStack item = taggedArtifact(plugin, ids[index], names[index], materials[index]);
-        ItemMeta meta = item.getItemMeta();
-        String description = switch (ids[index]) {
-            case "skull_scepter" -> "A scepter carved from a cursed skull.";
-            case "abyssal_heart" -> "A rare relic recovered from the deep.";
-            case "warden_echo_relic" -> "A resonant relic from the Deep Dark.";
-            case "dragon_wing_plate" -> "A plate forged from dragon-scale metal.";
-            case "dragon_blast" -> "A volatile charge infused with dragon fire.";
-            default -> "A rare enchanted relic.";
-        };
-        meta.displayName(itemTitle(names[index], NamedTextColor.GOLD));
-        meta.lore(List.of(itemLore(description, NamedTextColor.GRAY)));
-        item.setItemMeta(meta);
-        return item;
-    }
-
-    private static ItemStack taggedArtifact(UltraOPMobChestsPlugin plugin, String id,
-                                            String name, Material material) {
-        ItemStack item = new ItemStack(material);
-        ItemMeta meta = item.getItemMeta();
-        meta.displayName(itemTitle(name, NamedTextColor.GOLD));
-        meta.lore(List.of(itemLore("Rare treasure", NamedTextColor.GRAY)));
-        meta.getPersistentDataContainer().set(new NamespacedKey(plugin, "custom_item_id"),
-                PersistentDataType.STRING, id);
-        item.setItemMeta(meta);
-        return item;
-    }
 
     private static ItemStack stack(Material material, ThreadLocalRandom random, int min, int max) {
         if (material == null || material.isAir()) material = Material.BREAD;
