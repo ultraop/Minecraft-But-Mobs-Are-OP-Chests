@@ -109,6 +109,13 @@ public final class MobLootGenerator {
             inventory.setItem(slots.get(random.nextInt(Math.min(stacks, 4))), extraordinaryOpItem(random));
         }
 
+        // Every Overworld mob chest contributes one essential progression item.
+        // This keeps portal ignition and the Nether/End progression accessible even
+        // when players do not receive these items from normal vanilla mob drops.
+        if (environment == World.Environment.NORMAL && stacks > 0) {
+            inventory.setItem(slots.get(stacks - 1), overworldProgressionItem(random));
+        }
+
         // Warden chests always contain two enchanted armor pieces and one enchanted weapon.
         // Each piece has a 35% OP-enchantment roll; guarantee at least one and cap at two.
         if (type == EntityType.WARDEN) {
@@ -473,6 +480,19 @@ public final class MobLootGenerator {
         }
         item.setItemMeta(meta);
         return item;
+    }
+
+    private static ItemStack overworldProgressionItem(ThreadLocalRandom random) {
+        return switch (random.nextInt(100)) {
+            case 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+                    20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39 ->
+                    new ItemStack(Material.OBSIDIAN, random.nextInt(2, 5));
+            case 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59 ->
+                    new ItemStack(Material.FLINT_AND_STEEL, 1);
+            case 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79 ->
+                    new ItemStack(Material.BLAZE_ROD, random.nextInt(1, 3));
+            default -> new ItemStack(Material.ENDER_EYE, random.nextInt(1, 3));
+        };
     }
 
     private static ItemStack enchantedWardenGear(Material material, ThreadLocalRandom random, boolean overpowered) {
