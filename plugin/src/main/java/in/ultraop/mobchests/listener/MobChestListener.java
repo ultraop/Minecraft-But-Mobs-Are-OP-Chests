@@ -405,7 +405,8 @@ public final class MobChestListener implements Listener {
         if (stored == null || stored.length == 0) return null;
         ItemStack[] contents = ItemStack.deserializeItemsFromBytes(stored);
         Inventory inventory = Bukkit.createInventory(
-                new MobChestInventoryHolder(mob.getUniqueId()), 54,
+                new MobChestInventoryHolder(mob.getUniqueId()),
+                MobLootGenerator.inventorySize(mob.getType()),
                 Component.text(mob.getType().name().replace('_', ' ') + " Mob Chest",
                         NamedTextColor.GOLD).decoration(TextDecoration.ITALIC, false));
         int count = Math.min(contents.length, inventory.getSize());
