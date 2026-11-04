@@ -58,12 +58,12 @@ public final class MobLootGenerator {
 
         // Loot quantity scales by threat: tiny/passive mobs stay modest, while
         // combat mobs and bosses always have something worth opening the chest for.
-        int configuredMaximum = clamp(plugin.getConfig().getInt("loot.maximum-item-stacks", 5), 1, 6);
+        int configuredMaximum = clamp(plugin.getConfig().getInt("loot.maximum-item-stacks", 6), 1, 6);
         int[] range = switch (tier(type)) {
-            case COMMON -> new int[]{1, 2};
-            case MID -> new int[]{2, 3};
-            case STRONG -> new int[]{3, 4};
-            case BOSS -> new int[]{4, 5};
+            case COMMON -> new int[]{0, 4};
+            case MID -> new int[]{2, 4};
+            case STRONG -> new int[]{5, 6};
+            case BOSS -> new int[]{5, 6};
         };
         int minStacks = Math.min(range[0], configuredMaximum);
         int maxStacks = Math.min(range[1], configuredMaximum);
@@ -142,7 +142,7 @@ public final class MobLootGenerator {
     private static ItemStack reward(EntityType type, World.Environment environment, Rarity rarity,
                                     UltraOPMobChestsPlugin plugin,
                                     ThreadLocalRandom random) {
-        if (type == EntityType.WARDEN) return wardenReward(random, rarity);
+        if (tier(type) == MobTier.STRONG || tier(type) == MobTier.BOSS) return powerfulMobReward(type, random, rarity);
         return switch (rarity) {
             case COMMON -> createLootStack(randomMaterial(commonPool(type, environment)), random, 1, 4);
             case UNCOMMON -> createLootStack(randomMaterial(uncommonPool(type, environment)), random, 1, 2);
@@ -156,47 +156,50 @@ public final class MobLootGenerator {
         };
     }
 
-    private static ItemStack wardenReward(ThreadLocalRandom random, Rarity rarity) {
-        // Warden treasure is deliberately high-value, varied, and never an empty roll.
-        List<Material> core = List.of(Material.ECHO_SHARD, Material.SCULK_CATALYST,
-                Material.DIAMOND, Material.EMERALD, Material.GOLDEN_APPLE,
-                Material.EXPERIENCE_BOTTLE, Material.DIAMOND_SWORD,
-                Material.DIAMOND_PICKAXE, Material.DIAMOND_CHESTPLATE,
-                Material.DIAMOND_LEGGINGS, Material.DIAMOND_BOOTS,
-                Material.DIAMOND_HELMET, Material.BOW, Material.CROSSBOW,
-                Material.ARROW, Material.ENCHANTED_BOOK);
-        List<Material> premium = List.of(Material.NETHERITE_CHESTPLATE,
-                Material.NETHERITE_BOOTS, Material.NETHERITE_LEGGINGS,
-                Material.NETHERITE_HELMET, Material.NETHERITE_SWORD,
-                Material.NETHERITE_AXE, Material.TOTEM_OF_UNDYING,
-                Material.NETHERITE_INGOT, Material.SILENCE_ARMOR_TRIM_SMITHING_TEMPLATE);
-        Material chosen = (rarity == Rarity.EPIC || rarity == Rarity.LEGENDARY
-                || rarity == Rarity.MYTHIC) && random.nextDouble() < 0.55
-                ? premium.get(random.nextInt(premium.size()))
-                : core.get(random.nextInt(core.size()));
-        if (chosen == Material.ENCHANTED_BOOK) return vanillaEnchantedBook(random);
-        if (chosen == Material.BOW || chosen == Material.CROSSBOW
-                || chosen.name().endsWith("_SWORD") || chosen.name().endsWith("_CHESTPLATE")
-                || chosen.name().endsWith("_LEGGINGS") || chosen.name().endsWith("_BOOTS")
-                || chosen.name().endsWith("_HELMET") || chosen == Material.DIAMOND_PICKAXE
-                || chosen == Material.DIAMOND_AXE || chosen == Material.NETHERITE_AXE) {
-            ItemStack gear = new ItemStack(chosen);
-            ItemMeta meta = gear.getItemMeta();
-            String enchantKey = chosen == Material.BOW ? "power"
-                    : chosen == Material.CROSSBOW ? "quick_charge"
-                    : chosen.name().endsWith("_SWORD") ? "sharpness"
-                    : "protection";
-            Enchantment enchantment = Registry.ENCHANTMENT.get(NamespacedKey.minecraft(enchantKey));
-            if (enchantment != null) meta.addEnchant(enchantment,
-                    random.nextInt(1, chosen.name().startsWith("NETHERITE") ? 6 : 4), true);
-            if (random.nextDouble() < 0.22) {
-                Enchantment extra = Registry.ENCHANTMENT.get(NamespacedKey.minecraft("mending"));
-                if (extra != null) meta.addEnchant(extra, 1, true);
-            }
-            gear.setItemMeta(meta);
-            return gear;
+    /**
+     * Strong mobs and bosses provide useful progression materials in several
+     * distinct stacks. Netherite and trim rewards remain deliberately scarce.
+     */
+    private static ItemStack powerfulMobReward(EntityType type, ThreadLocalRandom random, Rarity rarity) {
+        boolean boss = tier(type) == MobTier.BOSS;
+        int roll = random.nextInt(1000);
+        if (roll < (boss ? 3 : 1)) {
+            return new ItemStack(randomMaterial(ARMOR_TRIM_ITEMS), 1);
         }
-        return new ItemStack(chosen, 1);
+        if (roll < (boss ? 18 : 7)) {
+            Material[] netheriteGear = {Material.NETHERITE_HELMET, Material.NETHERITE_CHESTPLATE,
+                    Material.NETHERITE_LEGGINGS, Material.NETHERITE_BOOTS};
+            return new ItemStack(netheriteGear[random.nextInt(netheriteGear.length)], 1);
+        }
+        if (roll < (boss ? 48 : 18)) {
+            return new ItemStack(Material.NETHERITE_INGOT, random.nextInt(1, 3));
+        }
+        if (roll < (boss ? 145 : 85)) {
+            Material[] diamondGear = {Material.DIAMOND_HELMET, Material.DIAMOND_CHESTPLATE,
+                    Material.DIAMOND_LEGGINGS, Material.DIAMOND_BOOTS, Material.DIAMOND_SWORD,
+                    Material.DIAMOND_PICKAXE, Material.DIAMOND_AXE};
+            return new ItemStack(diamondGear[random.nextInt(diamondGear.length)], 1);
+        }
+
+        // Core rewards: random useful stacks, with larger quantities for valuable consumables.
+        int choice = random.nextInt(type == EntityType.WARDEN ? 15 : 14);
+        return switch (choice) {
+            case 0 -> new ItemStack(Material.ENCHANTED_GOLDEN_APPLE, random.nextInt(5, 11));
+            case 1 -> new ItemStack(Material.GOLD_BLOCK, random.nextInt(2, 6));
+            case 2 -> new ItemStack(Material.DIAMOND_BLOCK, random.nextInt(1, 3));
+            case 3 -> new ItemStack(Material.GOLD_INGOT, random.nextInt(8, 25));
+            case 4 -> new ItemStack(Material.DIAMOND, random.nextInt(3, 9));
+            case 5 -> new ItemStack(Material.EMERALD_BLOCK, random.nextInt(1, 4));
+            case 6 -> new ItemStack(Material.EXPERIENCE_BOTTLE, random.nextInt(8, 25));
+            case 7 -> new ItemStack(Material.TOTEM_OF_UNDYING, 1);
+            case 8 -> new ItemStack(Material.NETHERITE_SCRAP, random.nextInt(1, 4));
+            case 9 -> new ItemStack(Material.ANCIENT_DEBRIS, random.nextInt(1, 3));
+            case 10 -> new ItemStack(Material.DIAMOND_CHESTPLATE, 1);
+            case 11 -> new ItemStack(Material.ENCHANTED_BOOK, 1);
+            case 12 -> new ItemStack(Material.GOLDEN_CARROT, random.nextInt(8, 17));
+            case 13 -> new ItemStack(Material.IRON_BLOCK, random.nextInt(3, 9));
+            default -> new ItemStack(Material.ECHO_SHARD, random.nextInt(2, 5));
+        };
     }
 
     private static List<String> familyCommonPool(EntityType type) {
