@@ -17,26 +17,27 @@ interaction:
   first-right-click-freezes: true
   second-right-click-opens: true
   one-inventory-session-per-entity: true
-  close-without-taking-consumes-chest: true
+  close-without-taking-consumes-chest: false
   restore-original-mob-state-on-close: true
   save-remaining-chest-loot-on-mob: true
   replace-vanilla-drops-after-chest-used: true
 loot:
-  minimum-item-stacks: 14
-  maximum-item-stacks: 18
-  burst-max-stacks: 18
-  burst-ratio: 0.50
+  minimum-item-stacks: 0
+  maximum-item-stacks: 4
+  burst-max-stacks: 0
+  burst-ratio: 0.0
   prevent-full-armor-set-per-chest: true
   dimension-progression-loot: true
   tier-equipment-chance:
-    common: 0.06
-    mid: 0.22
-    strong: 0.38
-    boss: 0.55
+    common: 0.01
+    mid: 0.01
+    strong: 0.03
+    boss: 0.05
+  bat-elytra-chance: 0.02
 rarity:
-  common: 70.0
-  uncommon: 20.0
-  rare: 7.0
-  epic: 2.0
-  legendary: 0.8
-  mythic: 0.2
+  common: 80.0
+  uncommon: 17.0
+  rare: 2.5
+  epic: 0.4
+  legendary: 0.09
+  mythic: 0.01
