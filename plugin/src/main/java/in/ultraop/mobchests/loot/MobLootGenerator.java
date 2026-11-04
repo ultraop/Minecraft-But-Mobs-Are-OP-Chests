@@ -344,9 +344,8 @@ public final class MobLootGenerator {
 
     private static ItemStack extraordinaryOpItem(ThreadLocalRandom random) {
         int level = random.nextInt(15, 19);
-        switch (random.nextInt(4)) {
-            case 0:
-            case 1: {
+        return switch (random.nextInt(4)) {
+            case 0, 1 -> {
                 ItemStack sword = new ItemStack(random.nextBoolean() ? Material.NETHERITE_SWORD : Material.DIAMOND_SWORD);
                 ItemMeta meta = sword.getItemMeta();
                 Enchantment sharpness = Registry.ENCHANTMENT.get(NamespacedKey.minecraft("sharpness"));
@@ -356,9 +355,9 @@ public final class MobLootGenerator {
                 meta.displayName(Component.text("Ultra OP Sword", NamedTextColor.LIGHT_PURPLE)
                         .decoration(TextDecoration.ITALIC, TextDecoration.State.FALSE));
                 sword.setItemMeta(meta);
-                return sword;
+                yield sword;
             }
-            case 2: {
+            case 2 -> {
                 ItemStack bow = new ItemStack(Material.BOW);
                 ItemMeta meta = bow.getItemMeta();
                 Enchantment power = Registry.ENCHANTMENT.get(NamespacedKey.minecraft("power"));
@@ -366,9 +365,9 @@ public final class MobLootGenerator {
                 meta.displayName(Component.text("Ultra OP Bow", NamedTextColor.LIGHT_PURPLE)
                         .decoration(TextDecoration.ITALIC, TextDecoration.State.FALSE));
                 bow.setItemMeta(meta);
-                return bow;
+                yield bow;
             }
-            default: {
+            default -> {
                 ItemStack crossbow = new ItemStack(Material.CROSSBOW);
                 ItemMeta meta = crossbow.getItemMeta();
                 Enchantment quick = Registry.ENCHANTMENT.get(NamespacedKey.minecraft("quick_charge"));
@@ -378,9 +377,9 @@ public final class MobLootGenerator {
                 meta.displayName(Component.text("Ultra OP Crossbow", NamedTextColor.LIGHT_PURPLE)
                         .decoration(TextDecoration.ITALIC, TextDecoration.State.FALSE));
                 crossbow.setItemMeta(meta);
-                return crossbow;
+                yield crossbow;
             }
-        }
+        };
     }
 
     private static ItemStack tierEquipment(EntityType type, ThreadLocalRandom random) {
