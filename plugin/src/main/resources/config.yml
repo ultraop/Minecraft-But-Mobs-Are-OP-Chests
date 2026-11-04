@@ -23,16 +23,16 @@ interaction:
   replace-vanilla-drops-after-chest-used: true
 loot:
   minimum-item-stacks: 0
-  maximum-item-stacks: 4
+  maximum-item-stacks: 5
   burst-max-stacks: 0
   burst-ratio: 0.0
   prevent-full-armor-set-per-chest: true
   dimension-progression-loot: true
   tier-equipment-chance:
     common: 0.01
-    mid: 0.01
-    strong: 0.03
-    boss: 0.05
+    mid: 0.04
+    strong: 0.12
+    boss: 0.35
   bat-elytra-chance: 0.02
 rarity:
   common: 80.0
