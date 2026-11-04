@@ -2,13 +2,13 @@ name: MobChests
 version: 0.1.0-SNAPSHOT
 main: in.ultraop.mobchests.UltraOPMobChestsPlugin
 api-version: '26.3'
-description: Mob chest gameplay and water-physics Liquid Gold with an optional visual resource pack.
+description: Mob chest gameplay with mob-strength-scaled vanilla loot.
 authors: [MobChests Team]
 load: POSTWORLD
 commands:
   mobchests:
     description: Main command for Mob Chests.
-    usage: "/mobchests <info|help|status|items|reload>"
+    usage: "/mobchests <info|help|status|reload>"
     aliases: [mobchest]
     permission: mobchests.use
 permissions:
