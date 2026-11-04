@@ -259,6 +259,18 @@ public final class MobLootGenerator {
         };
     }
 
+    private static MobTier tier(EntityType type) {
+        String name = type.name();
+        if (isBoss(type) || name.equals("WARDEN")) return MobTier.BOSS;
+        if (List.of("RAVAGER", "EVOKER", "VINDICATOR", "PIGLIN_BRUTE", "BLAZE",
+                "GHAST", "SHULKER", "HOGLIN", "ZOGLIN").contains(name)) return MobTier.STRONG;
+        if (List.of("ZOMBIE", "HUSK", "DROWNED", "SKELETON", "STRAY", "CREEPER",
+                "SPIDER", "CAVE_SPIDER", "ENDERMAN", "WITCH", "PHANTOM", "PILLAGER",
+                "GUARDIAN", "PIGLIN", "BREEZE", "SLIME", "MAGMA_CUBE", "VEX",
+                "SILVERFISH", "ENDERMITE").contains(name)) return MobTier.MID;
+        return MobTier.COMMON;
+    }
+
     private static ItemStack tierEquipment(EntityType type, ThreadLocalRandom random) {
         String name = type.name();
         boolean boss = isBoss(type) || name.equals("WARDEN");
@@ -435,5 +447,6 @@ public final class MobLootGenerator {
         return Math.max(min, Math.min(max, value));
     }
 
+    private enum MobTier { COMMON, MID, STRONG, BOSS }
     private enum Rarity { COMMON, UNCOMMON, RARE, EPIC, LEGENDARY, MYTHIC }
 }
