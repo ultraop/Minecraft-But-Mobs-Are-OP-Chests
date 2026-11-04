@@ -409,6 +409,13 @@ public final class MobChestListener implements Listener {
                 new MobChestInventoryHolder(mob.getUniqueId()), MobLootGenerator.inventorySize(mob.getType()),
                 Component.text(mob.getType().name().replace('_', ' ') + " Mob Chest",
                         NamedTextColor.GOLD).decoration(TextDecoration.ITALIC, false));
+        // Current 27-slot saves must retain their exact slot positions. Using
+        // addItem() here compacts gaps and makes a shuffled chest look ordered
+        // every time it is reopened. Only legacy 54-slot data is compacted.
+        if (contents.length == inventory.getSize()) {
+            inventory.setContents(contents);
+            return inventory;
+        }
         List<ItemStack> savedItems = new ArrayList<>();
         for (ItemStack stack : contents) {
             if (stack != null && !stack.getType().isAir() && stack.getAmount() > 0) {
