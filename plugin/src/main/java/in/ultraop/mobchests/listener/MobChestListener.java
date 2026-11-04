@@ -274,13 +274,11 @@ public final class MobChestListener implements Listener {
             mob.teleport(anchor);
         }
 
-        Inventory inventory;
+        final Inventory inventory;
         try {
-            inventory = loadSavedInventory(mob);
-            if (inventory == null) {
-                inventory = MobLootGenerator.create(id, mob.getType(),
-                        mob.getWorld().getEnvironment(), plugin);
-            }
+            Inventory savedInventory = loadSavedInventory(mob);
+            inventory = savedInventory != null ? savedInventory
+                    : MobLootGenerator.create(id, mob.getType(), mob.getWorld().getEnvironment(), plugin);
         } catch (RuntimeException exception) {
             plugin.getLogger().severe("Could not prepare mob chest loot for " + id + ": " + exception.getMessage());
             recoverToFrozen(mob);
@@ -299,7 +297,7 @@ public final class MobChestListener implements Listener {
         // quiet, while larger mobs and bosses sound a little fuller.
         float sizeFactor = (float) Math.max(0.0, Math.min(1.0, (mob.getHeight() - 0.65) / 2.8));
         float chestVolume = 0.72F + 0.18F * sizeFactor;
-        float rocketVolume = 0.48F + 0.14F * sizeFactor;
+        float rocketVolume = 0.16F + 0.06F * sizeFactor;
         mob.getWorld().playSound(effectLocation, Sound.BLOCK_CHEST_OPEN, chestVolume, 1.0F);
         mob.getWorld().playSound(effectLocation, Sound.ENTITY_FIREWORK_ROCKET_LAUNCH, rocketVolume, 1.2F);
         mob.getWorld().spawnParticle(Particle.END_ROD, effectLocation, 8, 0.12, 0.12, 0.12, 0.025);
@@ -309,7 +307,8 @@ public final class MobChestListener implements Listener {
                     if (!mob.isValid() || mob.isDead()) return;
                     if (!player.isOnline()) {
                         persistInventory(mob, inventory);
-                        setState(mob, FROZEN);
+                        restoreNormalState(mob);
+                        setState(mob, NORMAL);
                         activeMobs.remove(id);
                         activeInventories.remove(id);
                         openers.remove(id);
@@ -320,7 +319,6 @@ public final class MobChestListener implements Listener {
 
                     setState(mob, LOOT_OPEN);
                     startOpenPoseHold(mob, plugin.settings().openingHeadPitchDegrees());
-                    launchLootBurst(mob, inventory);
                     persistInventory(mob, inventory);
                     try {
                         player.openInventory(inventory);
@@ -354,9 +352,8 @@ public final class MobChestListener implements Listener {
                 activeInventories.remove(id);
                 activeMobs.remove(id);
                 openers.remove(id);
-                setState(mob, FROZEN);
-                applyFrozenState(mob);
-                startFreezeEnforcer(mob);
+                restoreNormalState(mob);
+                setState(mob, NORMAL);
                 return;
             }
 
@@ -403,57 +400,6 @@ public final class MobChestListener implements Listener {
             applyHeadPitch(mob, anchor, openPitch);
         }, 1L, 1L);
         freezeTasks.put(id, task);
-    }
-
-    private void launchLootBurst(Mob mob, Inventory inventory) {
-        List<Integer> occupied = new ArrayList<>();
-        for (int slot = 0; slot < inventory.getSize(); slot++) {
-            ItemStack stack = inventory.getItem(slot);
-            if (stack != null && !stack.getType().isAir()) occupied.add(slot);
-        }
-        if (occupied.isEmpty()) return;
-
-        Collections.shuffle(occupied, ThreadLocalRandom.current());
-        int configuredBurst = Math.max(0,
-                Math.min(36, plugin.getConfig().getInt("loot.burst-max-stacks", 18)));
-        double burstRatio = Math.max(0.0, Math.min(1.0,
-                plugin.getConfig().getDouble("loot.burst-ratio", 0.50)));
-        int halfBurst = (int) Math.ceil(occupied.size() * burstRatio);
-        int burstStacks = Math.min(occupied.size(), Math.min(configuredBurst, halfBurst));
-        Location origin = mob.getLocation().clone()
-                .add(0.0, Math.max(0.9, mob.getHeight() * 0.75), 0.0);
-        ThreadLocalRandom random = ThreadLocalRandom.current();
-
-        for (int i = 0; i < burstStacks; i++) {
-            int slot = occupied.get(i);
-            ItemStack stack = inventory.getItem(slot);
-            if (stack == null || stack.getType().isAir()) continue;
-
-            // Remove from the GUI before spawning a real collectible item.
-            ItemStack ejected = stack.clone();
-            inventory.clear(slot);
-            Location spawnAt = origin.clone().add(
-                    random.nextDouble(-0.16, 0.16),
-                    random.nextDouble(-0.08, 0.12),
-                    random.nextDouble(-0.16, 0.16));
-            Item item = mob.getWorld().dropItem(spawnAt, ejected);
-            item.setPickupDelay(14);
-
-            double angle = random.nextDouble(0.0, Math.PI * 2.0);
-            // Low horizontal speed keeps the items within roughly 3–4 blocks.
-            double horizontal = random.nextDouble(0.10, 0.15);
-            double vertical = random.nextDouble(0.52, 0.62);
-            item.setVelocity(new Vector(
-                    Math.cos(angle) * horizontal,
-                    vertical,
-                    Math.sin(angle) * horizontal));
-        }
-
-        mob.getWorld().playSound(origin, Sound.ENTITY_FIREWORK_ROCKET_BLAST, 0.75F, 1.05F);
-        mob.getWorld().spawnParticle(Particle.CLOUD, origin, 22, 0.36, 0.30, 0.36, 0.055);
-        mob.getWorld().spawnParticle(Particle.TOTEM_OF_UNDYING, origin, 30, 0.42, 0.36, 0.42, 0.18);
-        mob.getWorld().spawnParticle(Particle.CRIT, origin, 24, 0.38, 0.32, 0.38, 0.16);
-        mob.getWorld().spawnParticle(Particle.END_ROD, origin, 16, 0.40, 0.38, 0.40, 0.12);
     }
 
     private Inventory loadSavedInventory(Mob mob) {
@@ -547,16 +493,14 @@ public final class MobChestListener implements Listener {
                     plugin.settings().closeAnimationTicks(), CLOSING, () -> {
                         activeInventories.remove(mobId);
                         activeMobs.remove(mobId);
-                        setState(mob, FROZEN);
-                        applyFrozenState(mob);
-                        startFreezeEnforcer(mob);
+                        restoreNormalState(mob);
+                        setState(mob, NORMAL);
                     });
         } else {
             activeInventories.remove(mobId);
             activeMobs.remove(mobId);
-            setState(mob, FROZEN);
-            applyFrozenState(mob);
-            startFreezeEnforcer(mob);
+            restoreNormalState(mob);
+            setState(mob, NORMAL);
         }
     }
 
