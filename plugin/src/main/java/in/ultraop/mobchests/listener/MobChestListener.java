@@ -312,8 +312,6 @@ public final class MobChestListener implements Listener {
                         activeMobs.remove(id);
                         activeInventories.remove(id);
                         openers.remove(id);
-                        applyFrozenState(mob);
-                        startFreezeEnforcer(mob);
                         return;
                     }
 
