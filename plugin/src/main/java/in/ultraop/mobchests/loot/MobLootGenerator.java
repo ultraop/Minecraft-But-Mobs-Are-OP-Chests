@@ -53,7 +53,9 @@ public final class MobLootGenerator {
                 Component.text(displayName(type.name()) + " Treasure", NamedTextColor.GOLD));
         holder.bind(inventory);
 
-        int minStacks = clamp(plugin.getConfig().getInt("loot.minimum-item-stacks", 0), 0, 4);
+        int configuredMinimum = plugin.getConfig().getInt("loot.minimum-item-stacks", 0);
+        // Treat old pre-reduction configs (e.g. 14 minimum stacks) as the new zero minimum.
+        int minStacks = configuredMinimum > 4 ? 0 : Math.max(0, configuredMinimum);
         int maxStacks = clamp(plugin.getConfig().getInt("loot.maximum-item-stacks", 4), minStacks, 4);
         int stacks = random.nextInt(minStacks, maxStacks + 1);
         List<Integer> slots = new ArrayList<>();
