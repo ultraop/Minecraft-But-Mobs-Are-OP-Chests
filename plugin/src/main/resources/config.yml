@@ -23,7 +23,7 @@ interaction:
   replace-vanilla-drops-after-chest-used: true
 loot:
   minimum-item-stacks: 0
-  maximum-item-stacks: 5
+  maximum-item-stacks: 6
   burst-max-stacks: 0
   burst-ratio: 0.0
   prevent-full-armor-set-per-chest: true
