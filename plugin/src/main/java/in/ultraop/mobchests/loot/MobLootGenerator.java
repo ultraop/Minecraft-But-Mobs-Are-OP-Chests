@@ -60,7 +60,7 @@ public final class MobLootGenerator {
         // combat mobs and bosses always have something worth opening the chest for.
         int configuredMaximum = clamp(plugin.getConfig().getInt("loot.maximum-item-stacks", 6), 1, 6);
         int[] range = switch (tier(type)) {
-            case COMMON -> new int[]{0, 4};
+            case COMMON -> new int[]{3, 4};
             case MID -> new int[]{2, 4};
             case STRONG -> new int[]{5, 6};
             case BOSS -> new int[]{5, 6};
@@ -102,8 +102,8 @@ public final class MobLootGenerator {
         // Extraordinary OP gear is a separate, very rare reward for powerful mobs only.
         double opChance = switch (tier(type)) {
             case COMMON, MID -> 0.0;
-            case STRONG -> chance(plugin, "loot.rare-op-item-chance.strong", 0.004);
-            case BOSS -> chance(plugin, "loot.rare-op-item-chance.boss", 0.012);
+            case STRONG -> chance(plugin, "loot.rare-op-item-chance.strong", 0.10);
+            case BOSS -> chance(plugin, "loot.rare-op-item-chance.boss", 0.35);
         };
         if (random.nextDouble() < opChance) {
             inventory.setItem(slots.get(random.nextInt(Math.min(stacks, 4))), extraordinaryOpItem(random));
@@ -184,11 +184,14 @@ public final class MobLootGenerator {
             Material[] diamondGear = {Material.DIAMOND_HELMET, Material.DIAMOND_CHESTPLATE,
                     Material.DIAMOND_LEGGINGS, Material.DIAMOND_BOOTS, Material.DIAMOND_SWORD,
                     Material.DIAMOND_PICKAXE, Material.DIAMOND_AXE};
-            return new ItemStack(diamondGear[random.nextInt(diamondGear.length)], 1);
+            Material selected = diamondGear[random.nextInt(diamondGear.length)];
+            ItemStack gear = new ItemStack(selected, 1);
+            if (!type.name().equals("WARDEN")) enchantUsefulGear(gear, random, 8, 2);
+            return gear;
         }
 
         // Core rewards: random useful stacks, with larger quantities for valuable consumables.
-        int choice = random.nextInt(type == EntityType.WARDEN ? 15 : 14);
+        int choice = random.nextInt(24);
         return switch (choice) {
             case 0 -> new ItemStack(Material.ENCHANTED_GOLDEN_APPLE, random.nextInt(5, 11));
             case 1 -> new ItemStack(Material.GOLD_BLOCK, random.nextInt(2, 6));
@@ -201,16 +204,25 @@ public final class MobLootGenerator {
             case 8 -> new ItemStack(Material.NETHERITE_SCRAP, random.nextInt(1, 4));
             case 9 -> new ItemStack(Material.ANCIENT_DEBRIS, random.nextInt(1, 3));
             case 10 -> new ItemStack(Material.DIAMOND_CHESTPLATE, 1);
-            case 11 -> new ItemStack(Material.ENCHANTED_BOOK, 1);
+            case 11 -> vanillaEnchantedBook(random);
             case 12 -> new ItemStack(Material.GOLDEN_CARROT, random.nextInt(8, 17));
             case 13 -> new ItemStack(Material.IRON_BLOCK, random.nextInt(3, 9));
+            case 14 -> createLootStack(randomMaterial(List.of("FIREWORK_ROCKET", "ARROW", "SPECTRAL_ARROW")), random, 8, 24);
+            case 15 -> createLootStack(randomMaterial(List.of("ENDER_PEARL", "ENDER_EYE", "BLAZE_ROD")), random, 2, 6);
+            case 16 -> createLootStack(randomMaterial(List.of("GOAT_HORN", "MUSIC_DISC_13", "MUSIC_DISC_CAT", "MUSIC_DISC_PIGSTEP")), random, 1, 1);
+            case 17 -> createLootStack(randomMaterial(List.of("LANTERN", "CHAIN", "LADDER", "CANDLE", "AMETHYST_SHARD")), random, 2, 8);
+            case 18 -> createLootStack(randomMaterial(List.of("WHITE_WOOL", "GLASS", "SAND", "STONE", "COBBLED_DEEPSLATE")), random, 8, 24);
+            case 19 -> createLootStack(randomMaterial(List.of("OAK_PLANKS", "SPRUCE_PLANKS", "OAK_FENCE_GATE", "IRON_BARS")), random, 4, 16);
+            case 20 -> createLootStack(randomMaterial(List.of("GOLDEN_SPEAR", "IRON_SPEAR", "DIAMOND_SPEAR")), random, 1, 1);
+            case 21 -> createLootStack(randomMaterial(List.of("TOTEM_OF_UNDYING", "HONEY_BOTTLE", "MILK_BUCKET")), random, 1, 1);
+            case 22 -> createLootStack(randomMaterial(List.of("TNT", "FIRE_CHARGE", "BLAZE_POWDER")), random, 2, 8);
             default -> new ItemStack(Material.ECHO_SHARD, random.nextInt(2, 5));
         };
     }
 
     private static List<String> familyCommonPool(EntityType type) {
         String name = type.name();
-        if (name.equals("COW")) return List.of("BEEF", "LEATHER", "WHEAT", "BREAD", "APPLE");
+        if (name.equals("COW")) return List.of("BEEF", "LEATHER", "WHEAT", "BREAD", "APPLE", "MILK_BUCKET");
         if (name.equals("PIG") || name.equals("HOGLIN") || name.equals("ZOGLIN")) {
             return List.of("PORKCHOP", "CARROT", "POTATO", "LEATHER", "GOLD_NUGGET");
         }
@@ -224,10 +236,12 @@ public final class MobLootGenerator {
         if (name.equals("SPIDER") || name.equals("CAVE_SPIDER")) {
             return List.of("STRING", "SPIDER_EYE", "FERMENTED_SPIDER_EYE", "BROWN_MUSHROOM");
         }
-        if (name.equals("CREEPER")) return List.of("GUNPOWDER", "TNT", "COAL", "REDSTONE");
+        if (name.equals("CREEPER")) return List.of("GUNPOWDER", "TNT", "FIRE_CHARGE", "COAL", "REDSTONE", "FIREWORK_ROCKET");
         if (name.equals("ENDERMAN") || name.equals("ENDERMITE") || name.equals("SHULKER")) {
-            return List.of("ENDER_PEARL", "CHORUS_FRUIT", "PURPUR_BLOCK", "OBSIDIAN");
+            return List.of("ENDER_PEARL", "ENDER_EYE", "CHORUS_FRUIT", "PURPUR_BLOCK", "OBSIDIAN", "FIRE_CHARGE");
         }
+        if (name.equals("BEE")) return List.of("HONEY_BOTTLE", "HONEYCOMB", "FLOWER", "CANDLE");
+        if (name.equals("GOAT")) return List.of("GOAT_HORN", "WHEAT", "LEATHER", "WHITE_WOOL");
         if (name.equals("BLAZE") || name.equals("GHAST") || name.equals("MAGMA_CUBE")
                 || name.equals("PIGLIN") || name.equals("PIGLIN_BRUTE")) return NETHER_COMMON;
         if (name.contains("GUARDIAN") || name.equals("DOLPHIN") || name.equals("SQUID")
@@ -254,8 +268,10 @@ public final class MobLootGenerator {
         List<String> pool = new ArrayList<>(familyCommonPool(type));
         pool.addAll(List.of(
                 "COAL", "IRON_NUGGET", "COPPER_INGOT", "REDSTONE", "LAPIS_LAZULI",
-                "ARROW", "STRING", "STICK", "TORCH", "BREAD", "APPLE",
-                "CARROT", "POTATO", "WHEAT", "LEATHER"));
+                "ARROW", "SPECTRAL_ARROW", "FIREWORK_ROCKET", "STRING", "STICK", "TORCH", "BREAD", "APPLE",
+                "CARROT", "POTATO", "WHEAT", "LEATHER", "TNT", "ENDER_PEARL", "BLAZE_ROD",
+                "LANTERN", "CHAIN", "LADDER", "CANDLE", "AMETHYST_SHARD", "WHITE_WOOL",
+                "GLASS", "SAND", "OAK_PLANKS", "OAK_FENCE_GATE", "GOAT_HORN"));
         pool.addAll(dimensionCommonPool(environment));
         return pool;
     }
@@ -419,14 +435,31 @@ public final class MobLootGenerator {
                 : selected == Material.CROSSBOW ? new String[]{"quick_charge", "piercing", "multishot", "unbreaking"}
                 : selected == Material.TRIDENT ? new String[]{"impaling", "loyalty", "riptide", "unbreaking"}
                 : new String[]{"sharpness", "smite", "fire_aspect", "looting", "unbreaking", "mending"};
-        int count = boss ? random.nextInt(2, 4) : strong ? random.nextInt(1, 3) : 1;
-        int max = boss ? 8 : strong ? 5 : mid ? 3 : 2;
+        int count = boss ? random.nextInt(2, 4) : strong ? random.nextInt(2, 4) : mid ? 2 : 1;
+        int max = boss ? 12 : strong ? 10 : mid ? 5 : 2;
+        if (name.equals("WARDEN") && selected.name().matches(".*_(HELMET|CHESTPLATE|LEGGINGS|BOOTS)$")) count = 0;
         for (int i = 0; i < count; i++) {
             Enchantment enchantment = Registry.ENCHANTMENT.get(NamespacedKey.minecraft(keys[random.nextInt(keys.length)]));
             if (enchantment != null) meta.addEnchant(enchantment, random.nextInt(1, max + 1), true);
         }
         item.setItemMeta(meta);
         return item;
+    }
+
+    private static void enchantUsefulGear(ItemStack item, ThreadLocalRandom random, int maxLevel, int maxEnchantments) {
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return;
+        String name = item.getType().name();
+        String[] keys = name.endsWith("_HELMET") || name.endsWith("_CHESTPLATE") || name.endsWith("_LEGGINGS") || name.endsWith("_BOOTS")
+                ? new String[]{"protection", "unbreaking", "thorns", "mending"}
+                : name.contains("SWORD") ? new String[]{"sharpness", "looting", "fire_aspect", "unbreaking"}
+                : new String[]{"efficiency", "fortune", "unbreaking", "mending"};
+        int count = random.nextInt(1, maxEnchantments + 1);
+        for (int i = 0; i < count; i++) {
+            Enchantment enchantment = Registry.ENCHANTMENT.get(NamespacedKey.minecraft(keys[random.nextInt(keys.length)]));
+            if (enchantment != null) meta.addEnchant(enchantment, random.nextInt(1, maxLevel + 1), true);
+        }
+        item.setItemMeta(meta);
     }
 
     private static ItemStack enchantedGear(ThreadLocalRandom random) {
