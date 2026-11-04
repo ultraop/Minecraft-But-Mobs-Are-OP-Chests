@@ -2,7 +2,6 @@ package in.ultraop.mobchests.loot;
 
 import in.ultraop.mobchests.UltraOPMobChestsPlugin;
 import in.ultraop.mobchests.inventory.MobChestInventoryHolder;
-import in.ultraop.mobchests.fluid.LiquidGoldService;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
