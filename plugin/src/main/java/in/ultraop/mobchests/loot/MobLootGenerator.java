@@ -71,14 +71,14 @@ public final class MobLootGenerator {
             case STRONG -> chance(plugin, "loot.tier-equipment-chance.strong", 0.03);
             case BOSS -> chance(plugin, "loot.tier-equipment-chance.boss", 0.05);
         };
-        // Special rewards use one of the four allowed item slots, never an extra fifth slot.
-        if (nextSpecialSlot < Math.min(4, slots.size())) {
-            if (type == EntityType.BAT
-                    && random.nextDouble() < chance(plugin, "loot.bat-elytra-chance", 0.02)) {
-                inventory.setItem(slots.get(nextSpecialSlot), new ItemStack(Material.ELYTRA, 1));
-            } else if (random.nextDouble() < gearChance) {
-                inventory.setItem(slots.get(nextSpecialSlot), tierEquipment(type, random));
-            }
+        // Bat Elytra chance is independent of the normal roll count, replacing one slot if needed.
+        if (type == EntityType.BAT
+                && random.nextDouble() < chance(plugin, "loot.bat-elytra-chance", 0.02)) {
+            inventory.setItem(slots.get(0), new ItemStack(Material.ELYTRA, 1));
+        } else if (nextSpecialSlot < Math.min(4, slots.size())
+                && random.nextDouble() < gearChance) {
+            // Special gear occupies one of the four allowed item slots, never a fifth.
+            inventory.setItem(slots.get(nextSpecialSlot), tierEquipment(type, random));
         }
         return inventory;
     }
