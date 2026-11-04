@@ -1,51 +1,31 @@
 name: Build
-
 on:
   push:
-    branches: [main, "develop/**"]
+    branches: [main, "develop/**", "feature/**"]
   pull_request:
   workflow_dispatch:
-
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Java 25
-        uses: actions/setup-java@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '25'
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.5.1'
-
       - name: Build Paper plugin
         run: gradle clean build
-
-      - name: Install resource-pack image dependency
-        run: python3 -m pip install --user -r resource-pack/requirements.txt
-
-      - name: Build Liquid Gold resource pack
-        run: python3 resource-pack/build_pack.py
-
-      - name: Verify plugin and resource pack outputs
+      - name: Verify plugin output
         run: |
           test -f plugin/build/libs/UltraOP-MobChests-0.1.0-SNAPSHOT.jar
           jar tf plugin/build/libs/UltraOP-MobChests-0.1.0-SNAPSHOT.jar | grep -q "in/ultraop/mobchests/listener/MobChestListener.class"
-          jar tf plugin/build/libs/UltraOP-MobChests-0.1.0-SNAPSHOT.jar | grep -q "in/ultraop/mobchests/fluid/LiquidGoldService.class"
-          test -f resource-pack/build/MobChests-Liquid-Gold-ResourcePack.zip
-          unzip -t resource-pack/build/MobChests-Liquid-Gold-ResourcePack.zip
-
-      - name: Upload Paper plugin and Liquid Gold resource pack
-        uses: actions/upload-artifact@v4
+          jar tf plugin/build/libs/UltraOP-MobChests-0.1.0-SNAPSHOT.jar | grep -q "in/ultraop/mobchests/loot/MobLootGenerator.class"
+          ! jar tf plugin/build/libs/UltraOP-MobChests-0.1.0-SNAPSHOT.jar | grep -Eq "CustomItem|GoldenFood|LiquidGold"
+      - uses: actions/upload-artifact@v4
         with:
-          name: MobChests-Paper-26.3-Liquid-Gold-${{ github.sha }}
-          path: |
-            plugin/build/libs/*.jar
-            resource-pack/build/*.zip
+          name: MobChests-Paper-26.3-${{ github.sha }}
+          path: plugin/build/libs/*.jar
           if-no-files-found: error
