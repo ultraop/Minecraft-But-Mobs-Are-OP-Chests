@@ -404,19 +404,21 @@ public final class MobChestListener implements Listener {
         byte[] stored = mob.getPersistentDataContainer().get(chestLootKey, PersistentDataType.BYTE_ARRAY);
         if (stored == null || stored.length == 0) return null;
         ItemStack[] contents = ItemStack.deserializeItemsFromBytes(stored);
-        // Preserve legacy double-chest contents for mobs opened by an older build.
-        int savedSize = Math.max(MobLootGenerator.inventorySize(mob.getType()), contents.length);
-        int chestSize = Math.min(54, Math.max(9, ((savedSize + 8) / 9) * 9));
+        // Migrate old double-chest saves into the new compact single chest.
         Inventory inventory = Bukkit.createInventory(
-                new MobChestInventoryHolder(mob.getUniqueId()), chestSize,
+                new MobChestInventoryHolder(mob.getUniqueId()), MobLootGenerator.inventorySize(mob.getType()),
                 Component.text(mob.getType().name().replace('_', ' ') + " Mob Chest",
                         NamedTextColor.GOLD).decoration(TextDecoration.ITALIC, false));
-        int count = Math.min(contents.length, inventory.getSize());
-        for (int i = 0; i < count; i++) {
-            ItemStack stack = contents[i];
+        List<ItemStack> savedItems = new ArrayList<>();
+        for (ItemStack stack : contents) {
             if (stack != null && !stack.getType().isAir() && stack.getAmount() > 0) {
-                inventory.setItem(i, stack);
+                savedItems.add(stack.clone());
             }
+        }
+        Map<Integer, ItemStack> overflow = inventory.addItem(savedItems.toArray(new ItemStack[0]));
+        if (!overflow.isEmpty()) {
+            plugin.getLogger().warning("A legacy mob chest had more than 27 non-stackable stacks; "
+                    + overflow.size() + " overflow stack(s) could not fit for mob " + mob.getUniqueId());
         }
         return inventory;
     }
