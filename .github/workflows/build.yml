@@ -147,7 +147,7 @@ jobs:
               request_id, packet_type = struct.unpack("<ii", packet[:8])
               return request_id, packet_type, packet[8:-2].decode("utf-8", errors="replace")
           def send_packet(sock, request_id, packet_type, payload):
-              body = struct.pack("<ii", request_id, packet_type) + payload.encode() + b"\\x00\\x00"
+              body = struct.pack("<ii", request_id, packet_type) + payload.encode() + b"\x00\x00"
               sock.sendall(struct.pack("<i", len(body)) + body)
               return receive_packet(sock)
           sock = socket.create_connection((HOST, PORT), timeout=5)
@@ -160,7 +160,7 @@ jobs:
               response = send_packet(sock, request_id, 2, text)
               if response[0] != request_id:
                   raise SystemExit(f"Unexpected RCON response for {text}: {response}")
-              print(f"> {text}\\n{response[2]}")
+              print(f"> {text}\n{response[2]}")
               return response[2]
           info = command(102, "mobchest info")
           assert "Custom weapons: 5" in info, info
