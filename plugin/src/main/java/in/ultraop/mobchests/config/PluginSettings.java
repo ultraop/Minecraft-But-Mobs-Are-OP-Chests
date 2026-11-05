@@ -17,8 +17,6 @@ public final class PluginSettings {
         config = plugin.getConfig();
     }
 
-    public boolean debug() { return config.getBoolean("settings.debug", false); }
-
     public boolean interactionsEnabled(EntityType type) {
         if (!config.getBoolean("prototype.enabled", true)) return false;
         if (config.getStringList("prototype.excluded-entities").stream()
