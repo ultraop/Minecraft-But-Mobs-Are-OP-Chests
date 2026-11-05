@@ -137,7 +137,7 @@ public final class MobChestListener implements Listener {
             beginOpening(mob, event.getPlayer());
         } else if (OPENING.equals(state) || LOOT_OPEN.equals(state) || CLOSING.equals(state)) {
             event.setCancelled(true);
-            event.getPlayer().sendActionBar("This mob chest is already opening.");
+            event.getPlayer().sendActionBar(Component.text("This mob chest is already opening."));
         }
         // Reusable mob chests return to FROZEN after each close.
     }
@@ -319,7 +319,7 @@ public final class MobChestListener implements Listener {
                     persistInventory(mob, inventory);
                     try {
                         player.openInventory(inventory);
-                        player.sendActionBar("Take what you need. Close the inventory and right-click the mob again to reopen this chest.");
+                        player.sendActionBar(Component.text("Take what you need. Close the inventory and right-click the mob again to reopen this chest."));
                     } catch (RuntimeException exception) {
                         plugin.getLogger().severe("Could not open mob chest GUI for " + id + ": " + exception.getMessage());
                         persistInventory(mob, inventory);
