@@ -18,6 +18,23 @@ jobs:
           gradle-version: '9.5.1'
       - name: Build Paper plugin
         run: gradle clean build
+      - name: Validate event handler signatures
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          failed = []
+          pattern = re.compile(r'@EventHandler(?:\\([^)]*\\))?\\s*(?:public|protected|private)\\s+[\\w<>?,.\\[\\] ]+\\s+\\w+\\s*\\(([^)]*)\\)', re.S)
+          for path in Path("plugin/src/main/java").rglob("*.java"):
+              source = path.read_text(encoding="utf-8")
+              for match in pattern.finditer(source):
+                  params = [part.strip() for part in match.group(1).split(",") if part.strip()]
+                  if len(params) != 1 or not params[0].split()[-2].endswith("Event"):
+                      failed.append(f"{path}: @EventHandler must declare exactly one Event parameter: {match.group(1)}")
+          if failed:
+              raise SystemExit("\\n".join(failed))
+          print("All @EventHandler methods have a single Event parameter.")
+          PY
       - name: Verify plugin output
         run: |
           test -f plugin/build/libs/UltraOP-MobChests-0.1.0-SNAPSHOT.jar
