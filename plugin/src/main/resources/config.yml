@@ -14,6 +14,7 @@ loot:
   minimum-item-stacks: 1
   maximum-item-stacks: 6
   dimension-progression-loot: true
+  overworld-progression-chance: 0.12
   tier-equipment-chance:
     common: 0.01
     mid: 0.04
