@@ -2,6 +2,7 @@ package in.ultraop.mobchests.loot;
 
 import in.ultraop.mobchests.UltraOPMobChestsPlugin;
 import in.ultraop.mobchests.inventory.MobChestInventoryHolder;
+import in.ultraop.mobchests.loot.CustomMobItems;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -144,6 +145,22 @@ public final class MobLootGenerator {
             }
             for (int i = 0; i < wardenGear.length; i++) {
                 inventory.setItem(slots.get(i), enchantedWardenGear(wardenGear[i], random, opGear[i]));
+            }
+        }
+        // Unique themed weapons are rare, mob-specific chest rewards.
+        CustomMobItems.Definition relic = CustomMobItems.forMob(type);
+        if (relic != null) {
+            double relicChance = switch (type) {
+                case IRON_GOLEM -> 0.035;
+                case WARDEN -> 0.12;
+                case WITHER -> 0.28;
+                case ELDER_GUARDIAN -> 0.24;
+                case ENDER_DRAGON -> 0.32;
+                default -> 0.0;
+            };
+            if (random.nextDouble() < relicChance) {
+                inventory.setItem(slots.get(random.nextInt(inventory.getSize())),
+                        CustomMobItems.create(relic));
             }
         }
         return inventory;
