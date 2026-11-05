@@ -150,7 +150,17 @@ jobs:
               body = struct.pack("<ii", request_id, packet_type) + payload.encode() + b"\x00\x00"
               sock.sendall(struct.pack("<i", len(body)) + body)
               return receive_packet(sock)
-          sock = socket.create_connection((HOST, PORT), timeout=5)
+          sock = None
+          last_error = None
+          for attempt in range(30):
+              try:
+                  sock = socket.create_connection((HOST, PORT), timeout=5)
+                  break
+              except OSError as error:
+                  last_error = error
+                  time.sleep(1)
+          if sock is None:
+              raise SystemExit(f"RCON did not become available: {last_error}")
           sock.settimeout(5)
           auth_id = 101
           auth = send_packet(sock, auth_id, 3, PASSWORD)
