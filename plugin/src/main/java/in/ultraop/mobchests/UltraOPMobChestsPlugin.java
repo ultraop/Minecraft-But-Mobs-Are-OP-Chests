@@ -16,7 +16,7 @@ public final class UltraOPMobChestsPlugin extends JavaPlugin {
   command.setExecutor(executor); command.setTabCompleter(executor); getServer().getPluginManager().registerEvents(executor, this);
   mobChestListener=new MobChestListener(this);getServer().getPluginManager().registerEvents(mobChestListener,this);
   mobChestListener.recoverLoadedEntities();
-  getLogger().info("Mob Chests enabled. Vanilla mob chest gameplay and tiered loot are active.");
+  getLogger().info("Mob Chests enabled. Mob chests and five themed relic weapons are active.");
  }
  @Override public void onDisable(){if(mobChestListener!=null){mobChestListener.shutdown();HandlerList.unregisterAll(mobChestListener);}getLogger().info("Mob Chests disabled.");}
  public void reloadPluginData(){reloadConfig();settings.reload();messages.reload();}
