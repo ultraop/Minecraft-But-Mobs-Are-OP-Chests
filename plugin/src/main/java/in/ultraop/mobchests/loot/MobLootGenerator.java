@@ -119,50 +119,38 @@ public final class MobLootGenerator {
             inventory.setItem(slots.get(stacks - 1), overworldProgressionItem(random));
         }
 
-        // Warden chests always contain two enchanted armor pieces and one enchanted weapon.
-        // Each piece has a 35% OP-enchantment roll; guarantee at least one and cap at two.
+        // Warden: every chest guarantees one unique relic; 20% of chests contain two.
         if (type == EntityType.WARDEN) {
-            Material[] armorPieces = {Material.NETHERITE_HELMET, Material.NETHERITE_CHESTPLATE,
-                    Material.NETHERITE_LEGGINGS, Material.NETHERITE_BOOTS};
-            for (int i = armorPieces.length - 1; i > 0; i--) {
-                int j = random.nextInt(i + 1);
-                Material swap = armorPieces[i];
-                armorPieces[i] = armorPieces[j];
-                armorPieces[j] = swap;
+            List<CustomMobItems.Definition> pool = CustomMobItems.forMobAll(type);
+            Collections.shuffle(pool, random);
+            int count = random.nextDouble() < 0.20 ? 2 : 1;
+            for (int i = 0; i < count && i < pool.size(); i++) {
+                inventory.setItem(slots.get(i), CustomMobItems.create(pool.get(i)));
             }
-            Material[] wardenGear = {armorPieces[0], armorPieces[1],
-                    new Material[]{Material.NETHERITE_SWORD, Material.NETHERITE_AXE,
-                            Material.DIAMOND_SPEAR, Material.TRIDENT, Material.BOW,
-                            Material.CROSSBOW}[random.nextInt(6)]};
-            boolean[] opGear = new boolean[wardenGear.length];
-            int opCount = 0;
-            for (int i = 0; i < opGear.length; i++) {
-                opGear[i] = random.nextDouble() < 0.35;
-                if (opGear[i]) opCount++;
+        } else if (type == EntityType.ENDER_DRAGON) {
+            // Dragon loot is exclusive: four or five distinct relics plus 2-3 arcane books.
+            inventory.clear();
+            List<CustomMobItems.Definition> pool = CustomMobItems.forMobAll(type);
+            Collections.shuffle(pool, random);
+            int weaponCount = random.nextBoolean() ? 4 : 5;
+            for (int i = 0; i < weaponCount && i < pool.size(); i++) {
+                inventory.setItem(i, CustomMobItems.create(pool.get(i)));
             }
-            if (opCount == 0) {
-                opGear[random.nextInt(opGear.length)] = true;
-            } else if (opCount == 3) {
-                opGear[random.nextInt(opGear.length)] = false;
+            int bookCount = random.nextInt(2, 4);
+            for (int i = 0; i < bookCount; i++) {
+                inventory.setItem(weaponCount + i, dragonEnchantedBook(random));
             }
-            for (int i = 0; i < wardenGear.length; i++) {
-                inventory.setItem(slots.get(i), enchantedWardenGear(wardenGear[i], random, opGear[i]));
-            }
-        }
-        // Unique themed weapons are rare, mob-specific chest rewards.
-        CustomMobItems.Definition relic = CustomMobItems.forMob(type);
-        if (relic != null) {
-            double relicChance = switch (type) {
-                case IRON_GOLEM -> 0.035;
-                case WARDEN -> 0.12;
-                case WITHER -> 0.28;
-                case ELDER_GUARDIAN -> 0.24;
-                case ENDER_DRAGON -> 0.32;
-                default -> 0.0;
-            };
-            if (random.nextDouble() < relicChance) {
-                inventory.setItem(slots.get(random.nextInt(stacks, slots.size())),
-                        CustomMobItems.create(relic));
+        } else if (type == EntityType.IRON_GOLEM && random.nextDouble() < 0.01) {
+            // Iron Golem: exactly a 1% roll for one random custom weapon.
+            List<CustomMobItems.Definition> pool = CustomMobItems.all();
+            inventory.setItem(slots.get(random.nextInt(slots.size())),
+                    CustomMobItems.create(pool.get(random.nextInt(pool.size()))));
+        } else if (type == EntityType.WITHER || type == EntityType.ELDER_GUARDIAN) {
+            double relicChance = type == EntityType.WITHER ? 0.28 : 0.24;
+            List<CustomMobItems.Definition> pool = CustomMobItems.forMobAll(type);
+            if (!pool.isEmpty() && random.nextDouble() < relicChance) {
+                inventory.setItem(slots.get(Math.min(stacks, slots.size() - 1)),
+                        CustomMobItems.create(pool.get(random.nextInt(pool.size()))));
             }
         }
         return inventory;
@@ -590,6 +578,16 @@ public final class MobLootGenerator {
      * Keeping the high level in PDC rather than EnchantmentStorageMeta avoids
      * Minecraft's untranslated enchantment.level.N tooltip for levels > max.
      */
+    private static ItemStack dragonEnchantedBook(ThreadLocalRandom random) {
+        String[] keys = {"sharpness","protection","power","efficiency","unbreaking","looting","mending","fortune","swift_sneak","feather_falling"};
+        ItemStack book = new ItemStack(Material.ENCHANTED_BOOK);
+        EnchantmentStorageMeta meta = (EnchantmentStorageMeta) book.getItemMeta();
+        Enchantment enchantment = Registry.ENCHANTMENT.get(NamespacedKey.minecraft(keys[random.nextInt(keys.length)]));
+        if (enchantment != null) meta.addStoredEnchant(enchantment, random.nextInt(12, 31), true);
+        book.setItemMeta(meta);
+        return book;
+    }
+
     private static ItemStack vanillaEnchantedBook(ThreadLocalRandom random) {
         String[] keys = {"sharpness", "protection", "efficiency", "unbreaking", "fortune",
                 "looting", "feather_falling", "respiration", "power", "flame", "mending",
