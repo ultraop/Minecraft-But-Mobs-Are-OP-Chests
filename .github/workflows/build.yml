@@ -60,6 +60,54 @@ jobs:
           jar tf plugin/build/libs/UltraOP-MobChests-0.1.0-SNAPSHOT.jar | grep -q "in/ultraop/mobchests/command/MobChestsCommand.class"
           jar tf plugin/build/libs/UltraOP-MobChests-0.1.0-SNAPSHOT.jar | grep -q "plugin.yml"
           ! jar tf plugin/build/libs/UltraOP-MobChests-0.1.0-SNAPSHOT.jar | grep -Eq "CustomItem\.class|GoldenFood|LiquidGold"
+      - name: Smoke test plugin on Paper 26.3
+        run: |
+          mkdir -p smoke/plugins
+          cp plugin/build/libs/UltraOP-MobChests-0.1.0-SNAPSHOT.jar smoke/plugins/MobChests.jar
+          python - <<'PY'
+          import json
+          import urllib.request
+          version = "26.3"
+          api = f"https://api.papermc.io/v2/projects/paper/versions/{version}/builds"
+          with urllib.request.urlopen(api, timeout=30) as response:
+              builds = json.load(response)["builds"]
+          build = max(builds, key=lambda item: item["build"])
+          filename = build["downloads"]["application"]["name"]
+          url = f"https://api.papermc.io/v2/projects/paper/versions/{version}/builds/{build['build']}/downloads/{filename}"
+          urllib.request.urlretrieve(url, "smoke/paper.jar")
+          print(f"Downloaded Paper {version} build {build['build']}: {filename}")
+          PY
+          printf 'eula=true\n' > smoke/eula.txt
+          cat > smoke/server.properties <<'EOF'
+          online-mode=false
+          server-port=25566
+          server-ip=127.0.0.1
+          enable-rcon=false
+          spawn-protection=0
+          view-distance=2
+          simulation-distance=2
+          EOF
+          cd smoke
+          timeout --signal=TERM 150s java -Xms512M -Xmx1G -jar paper.jar --nogui > server.log 2>&1 &
+          server_pid=$!
+          for attempt in $(seq 1 75); do
+            if grep -Fq "Mob Chests enabled." server.log; then
+              break
+            fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              cat server.log
+              exit 1
+            fi
+            sleep 2
+          done
+          if ! grep -Fq "Mob Chests enabled." server.log; then
+            cat server.log
+            kill "$server_pid" 2>/dev/null || true
+            exit 1
+          fi
+          grep -F "Mob Chests enabled." server.log
+          kill "$server_pid" 2>/dev/null || true
+          wait "$server_pid" || true
       - uses: actions/upload-artifact@v4
         with:
           name: MobChests-Paper-26.3-${{ github.sha }}
