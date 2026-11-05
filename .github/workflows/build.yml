@@ -1,0 +1,194 @@
+name: Build
+on:
+  push:
+    branches: [main, "develop/**", "feature/**"]
+  pull_request:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.5.1'
+      - name: Build Paper plugin
+        run: gradle clean build
+      - name: Validate event handler signatures
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          failed = []
+          pattern = re.compile(r'@EventHandler(?:\([^)]*\))?\s*(?:public|protected|private)\s+[\w<>?,.\[\] ]+\s+\w+\s*\(([^)]*)\)', re.S)
+          for path in Path("plugin/src/main/java").rglob("*.java"):
+              source = path.read_text(encoding="utf-8")
+              for match in pattern.finditer(source):
+                  params = [part.strip() for part in match.group(1).split(",") if part.strip()]
+                  if len(params) != 1 or not params[0].split()[-2].endswith("Event"):
+                      failed.append(f"{path}: @EventHandler must declare exactly one Event parameter: {match.group(1)}")
+          if failed:
+              raise SystemExit("\n".join(failed))
+          print("All @EventHandler methods have a single Event parameter.")
+          config = Path("plugin/src/main/resources/config.yml").read_text(encoding="utf-8")
+          used_paths = set()
+          for path in Path("plugin/src/main/java").rglob("*.java"):
+              source = path.read_text(encoding="utf-8")
+              used_paths.update(value for value in re.findall(r'get(?:Boolean|Int|Double|String|StringList)\("([^"]+)"', source) if not value.endswith("."))
+          for dotted_path in sorted(used_paths):
+              segments = dotted_path.split(".")
+              for segment in segments:
+                  if not re.search(r"^\s*" + re.escape(segment) + r":", config, re.M):
+                      failed.append(f"config.yml is missing a key used by Java code: {dotted_path}")
+                      break
+          if "rarity:" not in config:
+              failed.append("config.yml is missing the rarity section")
+          if failed:
+              raise SystemExit("\n".join(failed))
+          print("All literal Java config paths are represented in config.yml.")
+          PY
+      - name: Verify plugin output
+        run: |
+          test -f plugin/build/libs/UltraOP-MobChests-0.1.0-SNAPSHOT.jar
+          jar tf plugin/build/libs/UltraOP-MobChests-0.1.0-SNAPSHOT.jar | grep -q "in/ultraop/mobchests/listener/MobChestListener.class"
+          jar tf plugin/build/libs/UltraOP-MobChests-0.1.0-SNAPSHOT.jar | grep -q "in/ultraop/mobchests/loot/MobLootGenerator.class"
+          jar tf plugin/build/libs/UltraOP-MobChests-0.1.0-SNAPSHOT.jar | grep -q "in/ultraop/mobchests/loot/CustomMobItems.class"
+          jar tf plugin/build/libs/UltraOP-MobChests-0.1.0-SNAPSHOT.jar | grep -q "in/ultraop/mobchests/command/MobChestsCommand.class"
+          jar tf plugin/build/libs/UltraOP-MobChests-0.1.0-SNAPSHOT.jar | grep -q "plugin.yml"
+          ! jar tf plugin/build/libs/UltraOP-MobChests-0.1.0-SNAPSHOT.jar | grep -Eq "CustomItem\.class|GoldenFood|LiquidGold"
+      - name: Smoke test plugin on Paper 26.3
+        run: |
+          mkdir -p smoke/plugins
+          cp plugin/build/libs/UltraOP-MobChests-0.1.0-SNAPSHOT.jar smoke/plugins/MobChests.jar
+          python - <<'PY'
+          import hashlib
+          import json
+          import urllib.request
+          version = "26.3"
+          api = f"https://fill.papermc.io/v3/projects/paper/versions/{version}/builds"
+          request = urllib.request.Request(
+              api,
+              headers={"User-Agent": "UltraOP-MobChests-CI/1.0 (https://github.com/ultraop/Minecraft-But-Mobs-Are-OP-Chests)"},
+          )
+          with urllib.request.urlopen(request, timeout=30) as response:
+              builds = json.load(response)
+          stable = [item for item in builds if item.get("channel") == "STABLE"]
+          if not stable:
+              raise SystemExit(f"No stable Paper build available for {version}")
+          build = stable[0]
+          download = build["downloads"]["server:default"]
+          download_request = urllib.request.Request(
+              download["url"],
+              headers={"User-Agent": "UltraOP-MobChests-CI/1.0 (https://github.com/ultraop/Minecraft-But-Mobs-Are-OP-Chests)"},
+          )
+          with urllib.request.urlopen(download_request, timeout=60) as response:
+              jar_bytes = response.read()
+          actual = hashlib.sha256(jar_bytes).hexdigest()
+          expected = download["checksums"]["sha256"]
+          if actual != expected:
+              raise SystemExit(f"Paper checksum mismatch: expected {expected}, got {actual}")
+          with open("smoke/paper.jar", "wb") as output:
+              output.write(jar_bytes)
+          print(f"Downloaded and SHA-256 verified Paper {version} stable build {build['id']}")
+          PY
+          printf 'eula=true\n' > smoke/eula.txt
+          cat > smoke/server.properties <<'EOF'
+          online-mode=false
+          server-port=25566
+          server-ip=127.0.0.1
+          enable-rcon=true
+          rcon.password=ultraop-ci-smoke
+          rcon.port=25575
+          spawn-protection=0
+          view-distance=2
+          simulation-distance=2
+          EOF
+          cd smoke
+          timeout --signal=TERM 150s java -Xms512M -Xmx1G -jar paper.jar --nogui > server.log 2>&1 &
+          server_pid=$!
+          for attempt in $(seq 1 75); do
+            if grep -Fq "Mob Chests enabled." server.log; then
+              break
+            fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              cat server.log
+              exit 1
+            fi
+            sleep 2
+          done
+          if ! grep -Fq "Mob Chests enabled." server.log; then
+            cat server.log
+            kill "$server_pid" 2>/dev/null || true
+            exit 1
+          fi
+          grep -F "Mob Chests enabled." server.log
+          python - <<'PY'
+          import re
+          import socket
+          import struct
+          import time
+          HOST, PORT, PASSWORD = "127.0.0.1", 25575, "ultraop-ci-smoke"
+          def receive_exact(sock, count):
+              chunks = []
+              remaining = count
+              while remaining:
+                  chunk = sock.recv(remaining)
+                  if not chunk:
+                      raise RuntimeError("RCON connection closed unexpectedly")
+                  chunks.append(chunk)
+                  remaining -= len(chunk)
+              return b"".join(chunks)
+          def receive_packet(sock):
+              length = struct.unpack("<i", receive_exact(sock, 4))[0]
+              packet = receive_exact(sock, length)
+              request_id, packet_type = struct.unpack("<ii", packet[:8])
+              return request_id, packet_type, packet[8:-2].decode("utf-8", errors="replace")
+          def send_packet(sock, request_id, packet_type, payload):
+              body = struct.pack("<ii", request_id, packet_type) + payload.encode() + b"\x00\x00"
+              sock.sendall(struct.pack("<i", len(body)) + body)
+              return receive_packet(sock)
+          sock = None
+          last_error = None
+          for attempt in range(30):
+              try:
+                  sock = socket.create_connection((HOST, PORT), timeout=5)
+                  break
+              except OSError as error:
+                  last_error = error
+                  time.sleep(1)
+          if sock is None:
+              raise SystemExit(f"RCON did not become available: {last_error}")
+          sock.settimeout(5)
+          auth_id = 101
+          auth = send_packet(sock, auth_id, 3, PASSWORD)
+          if auth[0] != auth_id:
+              raise SystemExit(f"RCON authentication failed: {auth}")
+          def command(request_id, text):
+              response = send_packet(sock, request_id, 2, text)
+              if response[0] != request_id:
+                  raise SystemExit(f"Unexpected RCON response for {text}: {response}")
+              clean = re.sub(r"§.", "", response[2])
+              print(f"> {text}\n{clean}")
+              return clean
+          info = command(102, "mobchest info")
+          assert "Custom weapons: 100" in info, info
+          status = command(103, "mobchest status")
+          assert "Custom weapons: 100" in status, status
+          items = command(104, "mobchest items")
+          assert "Only players can open the item browser." in items, items
+          reload = command(105, "mobchest reload")
+          assert "Configuration reloaded." in reload, reload
+          command(106, "stop")
+          sock.close()
+          print("Paper RCON command smoke tests passed.")
+          PY
+          wait "$server_pid" || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MobChests-Paper-26.3-${{ github.sha }}
+          path: plugin/build/libs/*.jar
+          if-no-files-found: error

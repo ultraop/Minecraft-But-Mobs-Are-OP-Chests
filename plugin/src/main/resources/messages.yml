@@ -1,0 +1,10 @@
+help:
+  lines:
+    - "&6&l━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    - "&6&lMOB CHESTS — HELP"
+    - "&e/mobchests info &7- Plugin information."
+    - "&e/mobchests help &7- This command guide."
+    - "&e/mobchests status &7- Runtime status."
+    - "&e/mobchests reload &7- Reload configuration (admin)."
+    - "&8Loot scales with mob strength; rare themed weapons may also appear."
+    - "&6&l━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

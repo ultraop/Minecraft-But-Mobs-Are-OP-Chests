@@ -1,0 +1,32 @@
+prototype:
+  enabled: true
+  support-all-mobs: true
+  supported-entities: []
+  excluded-entities: []
+  opening-head-look-degrees: 88.0
+  open-animation-ticks: 12
+  close-animation-ticks: 10
+freeze:
+  subtle-tremble-enabled: true
+  tremble-interval-ticks: 8
+  tremble-head-degrees: 0.8
+loot:
+  minimum-item-stacks: 1
+  maximum-item-stacks: 6
+  dimension-progression-loot: true
+  tier-equipment-chance:
+    common: 0.01
+    mid: 0.04
+    strong: 0.12
+    boss: 0.35
+  bat-elytra-chance: 0.02
+  rare-op-item-chance:
+    strong: 0.10
+    boss: 0.35
+rarity:
+  common: 80.0
+  uncommon: 17.0
+  rare: 2.5
+  epic: 0.4
+  legendary: 0.09
+  mythic: 0.01
