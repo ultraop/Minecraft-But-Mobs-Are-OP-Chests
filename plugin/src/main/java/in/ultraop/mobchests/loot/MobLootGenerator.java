@@ -111,11 +111,11 @@ public final class MobLootGenerator {
             inventory.setItem(slots.get(random.nextInt(Math.min(stacks, 4))), extraordinaryOpItem(random));
         }
 
-        // Every Overworld mob chest contributes one essential progression item.
-        // This keeps portal ignition and the Nether/End progression accessible even
-        // when players do not receive these items from normal vanilla mob drops.
+        // Overworld progression materials are now a rare bonus roll, independent
+        // from the common chest loot.
         if (environment == World.Environment.NORMAL
-                && plugin.getConfig().getBoolean("loot.dimension-progression-loot", true) && stacks > 0) {
+                && plugin.getConfig().getBoolean("loot.dimension-progression-loot", true)
+                && stacks > 0 && random.nextDouble() < chance(plugin, "loot.overworld-progression-chance", 0.12)) {
             inventory.setItem(slots.get(stacks - 1), overworldProgressionItem(random));
         }
 
@@ -288,7 +288,7 @@ public final class MobLootGenerator {
         }
         if (name.equals("CREEPER")) return List.of("GUNPOWDER", "TNT", "FIRE_CHARGE", "COAL", "REDSTONE", "FIREWORK_ROCKET");
         if (name.equals("ENDERMAN") || name.equals("ENDERMITE") || name.equals("SHULKER")) {
-            return List.of("ENDER_PEARL", "ENDER_EYE", "CHORUS_FRUIT", "PURPUR_BLOCK", "OBSIDIAN", "FIRE_CHARGE");
+            return List.of("ENDER_PEARL", "CHORUS_FRUIT", "PURPUR_BLOCK", "FIRE_CHARGE");
         }
         if (name.equals("BEE")) return List.of("HONEY_BOTTLE", "HONEYCOMB", "FLOWER", "CANDLE");
         if (name.equals("GOAT")) return List.of("GOAT_HORN", "WHEAT", "LEATHER", "WHITE_WOOL");
@@ -329,10 +329,11 @@ public final class MobLootGenerator {
     private static List<String> dimensionCommonPool(World.Environment environment) {
         return switch (environment) {
             case NORMAL -> List.of(
-                    "OBSIDIAN", "FLINT", "FLINT_AND_STEEL", "IRON_INGOT",
-                    "GOLD_INGOT", "STONE", "DIRT", "GRAVEL", "SAND", "CLAY_BALL",
+                    "IRON_INGOT", "GOLD_INGOT", "STONE", "DIRT", "GRAVEL", "SAND", "CLAY_BALL",
                     "DEEPSLATE", "COBBLED_DEEPSLATE", "TUFF", "CALCITE",
-                    "MOSS_BLOCK", "LANTERN", "CHAIN", "COPPER_INGOT");
+                    "MOSS_BLOCK", "LANTERN", "CHAIN", "COPPER_INGOT", "BONE",
+                    "INK_SAC", "FIRE_CHARGE", "BLAZE_ROD", "REDSTONE", "COOKIE",
+                    "CAKE", "EGG", "ARROW", "CLOCK", "SPYGLASS", "MUSIC_DISC_13");
             case NETHER -> List.of(
                     "NETHER_QUARTZ_ORE", "QUARTZ", "GLOWSTONE_DUST", "MAGMA_CREAM",
                     "BLAZE_ROD", "GOLD_NUGGET", "GOLD_INGOT", "NETHER_BRICK",
@@ -350,10 +351,15 @@ public final class MobLootGenerator {
     private static List<String> uncommonPool(EntityType type, World.Environment environment) {
         List<String> pool = new ArrayList<>(List.of(
                 "IRON_INGOT", "GOLD_INGOT", "EMERALD", "EXPERIENCE_BOTTLE",
-                "GOLDEN_CARROT", "ENDER_PEARL", "ENCHANTED_BOOK", "OBSIDIAN",
-                "POTION", "SPLASH_POTION", "NAME_TAG", "SADDLE", "LEAD",
-                "SLIME_BALL", "IRON_PICKAXE", "IRON_AXE", "IRON_SHOVEL",
-                "CROSSBOW", "SPYGLASS", "GOAT_HORN", "TRIDENT", "MAGMA_CREAM"));
+                "GOLDEN_CARROT", "ENDER_PEARL", "ENCHANTED_BOOK",
+                "POTION", "SPLASH_POTION", "LINGERING_POTION", "COOKIE", "CAKE",
+                "NAME_TAG", "SADDLE", "LEAD", "SLIME_BALL", "BONE", "INK_SAC",
+                "FLINT", "FIRE_CHARGE", "BLAZE_ROD", "REDSTONE", "REDSTONE_BRICKS",
+                "WHITE_DYE", "IRON_HELMET", "IRON_CHESTPLATE", "IRON_LEGGINGS",
+                "IRON_BOOTS", "IRON_SWORD", "IRON_PICKAXE", "IRON_AXE", "IRON_SHOVEL",
+                "CROSSBOW", "SPYGLASS", "CLOCK", "GOAT_HORN", "TRIDENT",
+                "MACE", "MUSIC_DISC_13", "MUSIC_DISC_CAT", "FIREWORK_ROCKET",
+                "EGG", "ARROW", "MAGMA_CREAM"));
         if (isExplorer(type.name())) pool.add("MAP");
         pool.addAll(dimensionCommonPool(environment));
         return pool;
@@ -378,8 +384,7 @@ public final class MobLootGenerator {
     private static List<String> dimensionRarePool(World.Environment environment) {
         return switch (environment) {
             case NORMAL -> List.of(
-                    "OBSIDIAN", "FLINT_AND_STEEL", "DIAMOND", "EMERALD",
-                    "ENDER_PEARL", "GOLDEN_APPLE", "IRON_BLOCK");
+                    "DIAMOND", "EMERALD", "ENDER_PEARL", "GOLDEN_APPLE", "IRON_BLOCK");
             case NETHER -> List.of(
                     "ANCIENT_DEBRIS", "NETHERITE_SCRAP", "BLAZE_ROD",
                     "NETHERITE_INGOT", "GOLD_BLOCK", "MAGMA_CREAM");
@@ -490,15 +495,21 @@ public final class MobLootGenerator {
     }
 
     private static ItemStack overworldProgressionItem(ThreadLocalRandom random) {
+        // Rare progression bonus. Obsidian, Flint and Steel, and Eye of Ender
+        // are deliberately low-weight outcomes inside this already rare roll.
         return switch (random.nextInt(100)) {
-            case 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
-                    20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39 ->
-                    new ItemStack(Material.OBSIDIAN, random.nextInt(2, 5));
-            case 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59 ->
-                    new ItemStack(Material.FLINT_AND_STEEL, 1);
-            case 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79 ->
+            case 0, 1, 2, 3, 4, 5 -> new ItemStack(Material.OBSIDIAN, random.nextInt(1, 3));
+            case 6, 7, 8, 9 -> new ItemStack(Material.FLINT_AND_STEEL, 1);
+            case 10, 11, 12, 13, 14, 15 -> new ItemStack(Material.ENDER_EYE, 1);
+            case 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28 ->
                     new ItemStack(Material.BLAZE_ROD, random.nextInt(1, 3));
-            default -> new ItemStack(Material.ENDER_EYE, random.nextInt(1, 3));
+            case 29, 30, 31, 32, 33, 34, 35, 36 ->
+                    new ItemStack(Material.ENDER_PEARL, random.nextInt(1, 3));
+            case 37, 38, 39, 40, 41, 42, 43, 44, 45, 46 ->
+                    new ItemStack(Material.IRON_INGOT, random.nextInt(2, 5));
+            case 47, 48, 49, 50, 51, 52, 53, 54, 55, 56 ->
+                    new ItemStack(Material.GOLD_INGOT, random.nextInt(1, 4));
+            default -> new ItemStack(Material.DIAMOND, 1);
         };
     }
 
@@ -612,7 +623,11 @@ public final class MobLootGenerator {
         if (material == Material.POTION || material == Material.SPLASH_POTION
                 || material == Material.LINGERING_POTION) return randomPotion(material, random);
         if (material == Material.ENCHANTED_BOOK) return vanillaEnchantedBook(random);
-        return stack(material, random, minimum, maximum);
+        ItemStack result = stack(material, random, minimum, maximum);
+        if (material == Material.IRON_CHESTPLATE || material == Material.IRON_LEGGINGS) {
+            enchantUsefulGear(result, random, 3, 2);
+        }
+        return result;
     }
 
     private static ItemStack randomPotion(Material material, ThreadLocalRandom random) {
