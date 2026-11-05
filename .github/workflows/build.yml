@@ -38,7 +38,7 @@ jobs:
           used_paths = set()
           for path in Path("plugin/src/main/java").rglob("*.java"):
               source = path.read_text(encoding="utf-8")
-              used_paths.update(re.findall(r'get(?:Boolean|Int|Double|String|StringList)\("([^"]+)"', source))
+              used_paths.update(value for value in re.findall(r'get(?:Boolean|Int|Double|String|StringList)\("([^"]+)"', source) if not value.endswith("."))
           for dotted_path in sorted(used_paths):
               segments = dotted_path.split(".")
               for segment in segments:
