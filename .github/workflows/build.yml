@@ -175,9 +175,9 @@ jobs:
               print(f"> {text}\n{clean}")
               return clean
           info = command(102, "mobchest info")
-          assert "Custom weapons: 5" in info, info
+          assert "Custom weapons: 100" in info, info
           status = command(103, "mobchest status")
-          assert "Custom weapons: 5" in status, status
+          assert "Custom weapons: 100" in status, status
           items = command(104, "mobchest items")
           assert "Only players can open the item browser." in items, items
           reload = command(105, "mobchest reload")
