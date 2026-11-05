@@ -60,14 +60,15 @@ public final class MobLootGenerator {
         // Loot quantity scales by threat: tiny/passive mobs stay modest, while
         // combat mobs and bosses always have something worth opening the chest for.
         int configuredMaximum = clamp(plugin.getConfig().getInt("loot.maximum-item-stacks", 6), 1, 6);
+        int configuredMinimum = clamp(plugin.getConfig().getInt("loot.minimum-item-stacks", 1), 1, 6);
         int[] range = switch (tier(type)) {
             case COMMON -> new int[]{3, 4};
             case MID -> new int[]{2, 4};
             case STRONG -> new int[]{5, 6};
             case BOSS -> new int[]{5, 6};
         };
-        int minStacks = Math.min(range[0], configuredMaximum);
-        int maxStacks = Math.min(range[1], configuredMaximum);
+        int minStacks = Math.min(Math.max(range[0], configuredMinimum), configuredMaximum);
+        int maxStacks = Math.max(minStacks, Math.min(range[1], configuredMaximum));
         int stacks = random.nextInt(minStacks, maxStacks + 1);
         List<Integer> slots = new ArrayList<>();
         for (int slot = 0; slot < inventory.getSize(); slot++) slots.add(slot);
@@ -113,7 +114,8 @@ public final class MobLootGenerator {
         // Every Overworld mob chest contributes one essential progression item.
         // This keeps portal ignition and the Nether/End progression accessible even
         // when players do not receive these items from normal vanilla mob drops.
-        if (environment == World.Environment.NORMAL && stacks > 0) {
+        if (environment == World.Environment.NORMAL
+                && plugin.getConfig().getBoolean("loot.dimension-progression-loot", true) && stacks > 0) {
             inventory.setItem(slots.get(stacks - 1), overworldProgressionItem(random));
         }
 
