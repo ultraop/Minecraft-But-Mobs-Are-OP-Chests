@@ -2,7 +2,7 @@ name: MobChests
 version: 0.1.0-SNAPSHOT
 main: in.ultraop.mobchests.UltraOPMobChestsPlugin
 api-version: '26.3'
-description: Mob chest gameplay with mob-strength-scaled vanilla loot.
+description: Mob chests with strength-scaled loot and rare mob-themed weapons.
 authors: [MobChests Team]
 load: POSTWORLD
 commands:
