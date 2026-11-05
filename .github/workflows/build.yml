@@ -34,6 +34,22 @@ jobs:
           if failed:
               raise SystemExit("\n".join(failed))
           print("All @EventHandler methods have a single Event parameter.")
+          config = Path("plugin/src/main/resources/config.yml").read_text(encoding="utf-8")
+          used_paths = set()
+          for path in Path("plugin/src/main/java").rglob("*.java"):
+              source = path.read_text(encoding="utf-8")
+              used_paths.update(re.findall(r'get(?:Boolean|Int|Double|String|StringList)\\("([^"]+)"', source))
+          for dotted_path in sorted(used_paths):
+              segments = dotted_path.split(".")
+              for segment in segments:
+                  if not re.search(r"^\\s*" + re.escape(segment) + r":", config, re.M):
+                      failed.append(f"config.yml is missing a key used by Java code: {dotted_path}")
+                      break
+          if "rarity:" not in config:
+              failed.append("config.yml is missing the rarity section")
+          if failed:
+              raise SystemExit("\\n".join(failed))
+          print("All literal Java config paths are represented in config.yml.")
           PY
       - name: Verify plugin output
         run: |
