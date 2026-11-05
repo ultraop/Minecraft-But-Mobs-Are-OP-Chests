@@ -13,7 +13,6 @@ freeze:
 loot:
   minimum-item-stacks: 1
   maximum-item-stacks: 6
-  # Enables the Overworld progression reward in addition to the mob's normal loot.
   dimension-progression-loot: true
   tier-equipment-chance:
     common: 0.01
