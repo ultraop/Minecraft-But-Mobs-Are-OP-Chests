@@ -13,7 +13,7 @@ public final class UltraOPMobChestsPlugin extends JavaPlugin {
   settings=new PluginSettings(this); messages=new MessageService(this); settings.reload(); messages.reload();
   MobChestsCommand executor=new MobChestsCommand(this); PluginCommand command=getCommand("mobchests");
   if(command==null){getLogger().severe("Missing mobchests command in plugin.yml; disabling.");getServer().getPluginManager().disablePlugin(this);return;}
-  command.setExecutor(executor); command.setTabCompleter(executor);
+  command.setExecutor(executor); command.setTabCompleter(executor); getServer().getPluginManager().registerEvents(executor, this);
   mobChestListener=new MobChestListener(this);getServer().getPluginManager().registerEvents(mobChestListener,this);
   mobChestListener.recoverLoadedEntities();
   getLogger().info("Mob Chests enabled. Vanilla mob chest gameplay and tiered loot are active.");
