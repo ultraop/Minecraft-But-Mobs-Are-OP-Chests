@@ -40,6 +40,9 @@ jobs:
           test -f plugin/build/libs/UltraOP-MobChests-0.1.0-SNAPSHOT.jar
           jar tf plugin/build/libs/UltraOP-MobChests-0.1.0-SNAPSHOT.jar | grep -q "in/ultraop/mobchests/listener/MobChestListener.class"
           jar tf plugin/build/libs/UltraOP-MobChests-0.1.0-SNAPSHOT.jar | grep -q "in/ultraop/mobchests/loot/MobLootGenerator.class"
+          jar tf plugin/build/libs/UltraOP-MobChests-0.1.0-SNAPSHOT.jar | grep -q "in/ultraop/mobchests/loot/CustomMobItems.class"
+          jar tf plugin/build/libs/UltraOP-MobChests-0.1.0-SNAPSHOT.jar | grep -q "in/ultraop/mobchests/command/MobChestsCommand.class"
+          jar tf plugin/build/libs/UltraOP-MobChests-0.1.0-SNAPSHOT.jar | grep -q "plugin.yml"
           ! jar tf plugin/build/libs/UltraOP-MobChests-0.1.0-SNAPSHOT.jar | grep -Eq "CustomItem\.class|GoldenFood|LiquidGold"
       - uses: actions/upload-artifact@v4
         with:
