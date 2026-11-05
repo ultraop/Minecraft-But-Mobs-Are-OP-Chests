@@ -142,7 +142,6 @@ public final class MobChestListener implements Listener {
         // Reusable mob chests return to FROZEN after each close.
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     private void freeze(Mob mob, Player player) {
         PersistentDataContainer data = mob.getPersistentDataContainer();
         data.set(originalAiKey, PersistentDataType.BYTE, bool(mob.hasAI()));
