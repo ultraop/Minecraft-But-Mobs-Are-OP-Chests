@@ -1,0 +1,15 @@
+package in.ultraop.mobchests.loot;
+import net.kyori.adventure.text.Component;import net.kyori.adventure.text.format.NamedTextColor;import net.kyori.adventure.text.format.TextDecoration;import org.bukkit.Material;import org.bukkit.NamespacedKey;import org.bukkit.Registry;import org.bukkit.enchantments.Enchantment;import org.bukkit.entity.EntityType;import org.bukkit.inventory.ItemStack;import org.bukkit.inventory.meta.ItemMeta;import java.util.List;import java.util.Locale;
+public final class CustomMobItems {
+ public record Definition(String id,String name,Material material,EntityType source,int power,String[] enchants,String lore){}
+ private static final List<Definition> ITEMS=List.of(
+ new Definition("iron_golem_mace","Mjolnier",Material.MACE,EntityType.IRON_GOLEM,4,new String[]{"density:2","wind_burst:1","unbreaking:3"},"Forged Sentinel"),
+ new Definition("warden_blade","Kamish Wrath Alpha",Material.NETHERITE_SWORD,EntityType.WARDEN,12,new String[]{"sharpness:9","looting:5","fire_aspect:3","unbreaking:5"},"Deep Silence"),
+ new Definition("wither_bow","Demonic Bow",Material.BOW,EntityType.WITHER,14,new String[]{"power:11","flame:2","punch:3","unbreaking:5"},"Withered Soul"),
+ new Definition("elder_guardian_spear","Aquatic Rage",Material.DIAMOND_SPEAR,EntityType.ELDER_GUARDIAN,13,new String[]{"impaling:9","loyalty:4","unbreaking:5"},"Abyssal Tide"),
+ new Definition("dragon_crossbow","Blades of War",Material.CROSSBOW,EntityType.ENDER_DRAGON,16,new String[]{"quick_charge:5","piercing:9","unbreaking:6"},"Endfall"));
+ private CustomMobItems(){} public static List<Definition> all(){return ITEMS;}
+ public static Definition byName(String v){String q=v.trim().toLowerCase(Locale.ROOT).replace('_',' ');return ITEMS.stream().filter(d->d.name().equalsIgnoreCase(q)||d.id().replace('_',' ').equalsIgnoreCase(q)).findFirst().orElse(null);}
+ public static Definition forMob(EntityType t){return ITEMS.stream().filter(d->d.source()==t).findFirst().orElse(null);}
+ public static ItemStack create(Definition d){ItemStack i=new ItemStack(d.material());ItemMeta m=i.getItemMeta();m.displayName(Component.text(d.name(),NamedTextColor.GOLD).decoration(TextDecoration.ITALIC,false).decoration(TextDecoration.BOLD,true));m.lore(List.of(Component.text("Custom Mob Weapon",NamedTextColor.LIGHT_PURPLE).decoration(TextDecoration.ITALIC,false),Component.text("Relic: "+d.lore(),NamedTextColor.GRAY).decoration(TextDecoration.ITALIC,false),Component.text("Power Tier: "+d.power(),NamedTextColor.RED).decoration(TextDecoration.ITALIC,false),Component.text("Source: "+d.source().name().replace('_',' '),NamedTextColor.DARK_GRAY).decoration(TextDecoration.ITALIC,false)));for(String x:d.enchants()){String[] p=x.split(":");Enchantment e=Registry.ENCHANTMENT.get(NamespacedKey.minecraft(p[0]));if(e!=null)m.addEnchant(e,Integer.parseInt(p[1]),true);}i.setItemMeta(m);return i;}
+}
