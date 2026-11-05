@@ -159,7 +159,7 @@ public final class MobLootGenerator {
                 default -> 0.0;
             };
             if (random.nextDouble() < relicChance) {
-                inventory.setItem(slots.get(random.nextInt(inventory.getSize())),
+                inventory.setItem(slots.get(random.nextInt(stacks, slots.size())),
                         CustomMobItems.create(relic));
             }
         }
