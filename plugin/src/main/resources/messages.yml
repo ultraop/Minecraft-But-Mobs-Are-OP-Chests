@@ -6,5 +6,5 @@ help:
     - "&e/mobchests help &7- This command guide."
     - "&e/mobchests status &7- Runtime status."
     - "&e/mobchests reload &7- Reload configuration (admin)."
-    - "&8Loot quality scales with mob strength; all rewards are vanilla items."
+    - "&8Loot scales with mob strength; rare themed weapons may also appear."
     - "&6&l━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
