@@ -498,12 +498,12 @@ public final class MobLootGenerator {
         // Rare progression bonus. Obsidian, Flint and Steel, and Eye of Ender
         // are deliberately low-weight outcomes inside this already rare roll.
         return switch (random.nextInt(100)) {
-            case 0, 1, 2, 3 -> new ItemStack(Material.OBSIDIAN, random.nextInt(1, 3));
-            case 4, 5, 6, 7 -> new ItemStack(Material.FLINT_AND_STEEL, 1);
-            case 8, 9, 10, 11 -> new ItemStack(Material.ENDER_EYE, 1);
-            case 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24 ->
+            case 0, 1, 2, 3, 4, 5 -> new ItemStack(Material.OBSIDIAN, random.nextInt(1, 3));
+            case 6, 7, 8, 9 -> new ItemStack(Material.FLINT_AND_STEEL, 1);
+            case 10, 11, 12, 13, 14, 15 -> new ItemStack(Material.ENDER_EYE, 1);
+            case 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28 ->
                     new ItemStack(Material.BLAZE_ROD, random.nextInt(1, 3));
-            case 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36 ->
+            case 29, 30, 31, 32, 33, 34, 35, 36 ->
                     new ItemStack(Material.ENDER_PEARL, random.nextInt(1, 3));
             case 37, 38, 39, 40, 41, 42, 43, 44, 45, 46 ->
                     new ItemStack(Material.IRON_INGOT, random.nextInt(2, 5));
@@ -623,7 +623,11 @@ public final class MobLootGenerator {
         if (material == Material.POTION || material == Material.SPLASH_POTION
                 || material == Material.LINGERING_POTION) return randomPotion(material, random);
         if (material == Material.ENCHANTED_BOOK) return vanillaEnchantedBook(random);
-        return stack(material, random, minimum, maximum);
+        ItemStack result = stack(material, random, minimum, maximum);
+        if (material == Material.IRON_CHESTPLATE || material == Material.IRON_LEGGINGS) {
+            enchantUsefulGear(result, random, 3, 2);
+        }
+        return result;
     }
 
     private static ItemStack randomPotion(Material material, ThreadLocalRandom random) {
