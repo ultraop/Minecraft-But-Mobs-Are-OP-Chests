@@ -65,17 +65,31 @@ jobs:
           mkdir -p smoke/plugins
           cp plugin/build/libs/UltraOP-MobChests-0.1.0-SNAPSHOT.jar smoke/plugins/MobChests.jar
           python - <<'PY'
+          import hashlib
           import json
           import urllib.request
           version = "26.3"
-          api = f"https://api.papermc.io/v2/projects/paper/versions/{version}/builds"
-          with urllib.request.urlopen(api, timeout=30) as response:
-              builds = json.load(response)["builds"]
-          build = max(builds, key=lambda item: item["build"])
-          filename = build["downloads"]["application"]["name"]
-          url = f"https://api.papermc.io/v2/projects/paper/versions/{version}/builds/{build['build']}/downloads/{filename}"
-          urllib.request.urlretrieve(url, "smoke/paper.jar")
-          print(f"Downloaded Paper {version} build {build['build']}: {filename}")
+          api = f"https://fill.papermc.io/v3/projects/paper/versions/{version}/builds"
+          request = urllib.request.Request(
+              api,
+              headers={"User-Agent": "UltraOP-MobChests-CI/1.0 (https://github.com/ultraop/Minecraft-But-Mobs-Are-OP-Chests)"},
+          )
+          with urllib.request.urlopen(request, timeout=30) as response:
+              builds = json.load(response)
+          stable = [item for item in builds if item.get("channel") == "STABLE"]
+          if not stable:
+              raise SystemExit(f"No stable Paper build available for {version}")
+          build = stable[0]
+          download = build["downloads"]["server:default"]
+          with urllib.request.urlopen(download["url"], timeout=60) as response:
+              jar_bytes = response.read()
+          actual = hashlib.sha256(jar_bytes).hexdigest()
+          expected = download["checksums"]["sha256"]
+          if actual != expected:
+              raise SystemExit(f"Paper checksum mismatch: expected {expected}, got {actual}")
+          with open("smoke/paper.jar", "wb") as output:
+              output.write(jar_bytes)
+          print(f"Downloaded and SHA-256 verified Paper {version} stable build {build['id']}")
           PY
           printf 'eula=true\n' > smoke/eula.txt
           cat > smoke/server.properties <<'EOF'
