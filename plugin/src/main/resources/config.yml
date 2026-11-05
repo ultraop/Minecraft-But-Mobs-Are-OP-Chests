@@ -1,6 +1,3 @@
-settings:
-  language: en
-  debug: false
 prototype:
   enabled: true
   support-all-mobs: true
@@ -13,21 +10,10 @@ freeze:
   subtle-tremble-enabled: true
   tremble-interval-ticks: 8
   tremble-head-degrees: 0.8
-interaction:
-  first-right-click-freezes: true
-  second-right-click-opens: true
-  one-inventory-session-per-entity: true
-  close-without-taking-consumes-chest: false
-  restore-original-mob-state-on-close: true
-  save-remaining-chest-loot-on-mob: true
-  replace-vanilla-drops-after-chest-used: true
 loot:
-  minimum-item-stacks: 0
-  # Powerful mobs roll 5-6 randomized progression stacks; trims stay chest-limited and rare.
+  minimum-item-stacks: 1
   maximum-item-stacks: 6
-  burst-max-stacks: 0
-  burst-ratio: 0.0
-  prevent-full-armor-set-per-chest: true
+  # Enables the Overworld progression reward in addition to the mob's normal loot.
   dimension-progression-loot: true
   tier-equipment-chance:
     common: 0.01
