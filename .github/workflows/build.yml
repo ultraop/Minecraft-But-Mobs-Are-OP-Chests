@@ -81,7 +81,11 @@ jobs:
               raise SystemExit(f"No stable Paper build available for {version}")
           build = stable[0]
           download = build["downloads"]["server:default"]
-          with urllib.request.urlopen(download["url"], timeout=60) as response:
+          download_request = urllib.request.Request(
+              download["url"],
+              headers={"User-Agent": "UltraOP-MobChests-CI/1.0 (https://github.com/ultraop/Minecraft-But-Mobs-Are-OP-Chests)"},
+          )
+          with urllib.request.urlopen(download_request, timeout=60) as response:
               jar_bytes = response.read()
           actual = hashlib.sha256(jar_bytes).hexdigest()
           expected = download["checksums"]["sha256"]
