@@ -127,6 +127,7 @@ jobs:
           fi
           grep -F "Mob Chests enabled." server.log
           python - <<'PY'
+          import re
           import socket
           import struct
           import time
@@ -170,8 +171,9 @@ jobs:
               response = send_packet(sock, request_id, 2, text)
               if response[0] != request_id:
                   raise SystemExit(f"Unexpected RCON response for {text}: {response}")
-              print(f"> {text}\n{response[2]}")
-              return response[2]
+              clean = re.sub(r"§.", "", response[2])
+              print(f"> {text}\n{clean}")
+              return clean
           info = command(102, "mobchest info")
           assert "Custom weapons: 5" in info, info
           status = command(103, "mobchest status")
