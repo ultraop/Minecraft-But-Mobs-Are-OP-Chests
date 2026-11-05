@@ -24,7 +24,7 @@ jobs:
           from pathlib import Path
           import re
           failed = []
-          pattern = re.compile(r'@EventHandler(?:\\([^)]*\\))?\\s*(?:public|protected|private)\\s+[\\w<>?,.\\[\\] ]+\\s+\\w+\\s*\\(([^)]*)\\)', re.S)
+          pattern = re.compile(r'@EventHandler(?:\([^)]*\))?\s*(?:public|protected|private)\s+[\w<>?,.\[\] ]+\s+\w+\s*\(([^)]*)\)', re.S)
           for path in Path("plugin/src/main/java").rglob("*.java"):
               source = path.read_text(encoding="utf-8")
               for match in pattern.finditer(source):
@@ -32,7 +32,7 @@ jobs:
                   if len(params) != 1 or not params[0].split()[-2].endswith("Event"):
                       failed.append(f"{path}: @EventHandler must declare exactly one Event parameter: {match.group(1)}")
           if failed:
-              raise SystemExit("\\n".join(failed))
+              raise SystemExit("\n".join(failed))
           print("All @EventHandler methods have a single Event parameter.")
           PY
       - name: Verify plugin output
@@ -40,7 +40,7 @@ jobs:
           test -f plugin/build/libs/UltraOP-MobChests-0.1.0-SNAPSHOT.jar
           jar tf plugin/build/libs/UltraOP-MobChests-0.1.0-SNAPSHOT.jar | grep -q "in/ultraop/mobchests/listener/MobChestListener.class"
           jar tf plugin/build/libs/UltraOP-MobChests-0.1.0-SNAPSHOT.jar | grep -q "in/ultraop/mobchests/loot/MobLootGenerator.class"
-          ! jar tf plugin/build/libs/UltraOP-MobChests-0.1.0-SNAPSHOT.jar | grep -Eq "CustomItem\\.class|GoldenFood|LiquidGold"
+          ! jar tf plugin/build/libs/UltraOP-MobChests-0.1.0-SNAPSHOT.jar | grep -Eq "CustomItem\.class|GoldenFood|LiquidGold"
       - uses: actions/upload-artifact@v4
         with:
           name: MobChests-Paper-26.3-${{ github.sha }}
